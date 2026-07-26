@@ -1,0 +1,66 @@
+import mongoose, { Schema, Model } from 'mongoose';
+import baseSchema, { BaseDocument } from './Base';
+
+export interface ITopic extends BaseDocument {
+  subject: mongoose.Types.ObjectId;
+  grade: mongoose.Types.ObjectId;
+  chapter: mongoose.Types.ObjectId;
+  name: string;
+  code: string;
+  description?: string;
+  order: number;
+  isActive: boolean;
+}
+
+const TopicSchema = new Schema<ITopic>(
+  {
+    subject: {
+      type: Schema.Types.ObjectId,
+      ref: 'Subject',
+      required: [true, 'Subject is required'],
+    },
+    grade: {
+      type: Schema.Types.ObjectId,
+      ref: 'Grade',
+      required: [true, 'Grade is required'],
+    },
+    chapter: {
+      type: Schema.Types.ObjectId,
+      ref: 'Chapter',
+      required: [true, 'Chapter is required'],
+    },
+    name: {
+      type: String,
+      required: [true, 'Topic name is required'],
+      trim: true,
+    },
+    code: {
+      type: String,
+      required: [true, 'Topic code is required'],
+      trim: true,
+    },
+    description: {
+      type: String,
+      trim: true,
+    },
+    order: {
+      type: Number,
+      default: 0,
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+TopicSchema.index({ subject: 1, grade: 1, chapter: 1, code: 1 });
+TopicSchema.index({ order: 1 });
+TopicSchema.index({ isActive: 1 });
+
+const TopicModel: Model<ITopic> = mongoose.models.Topic || mongoose.model<ITopic>('Topic', TopicSchema);
+
+export default TopicModel;
