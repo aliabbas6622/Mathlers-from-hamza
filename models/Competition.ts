@@ -1,79 +1,221 @@
 import mongoose, { Schema, Model } from 'mongoose';
 import baseSchema, { BaseDocument } from './Base';
 
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+export enum CompetitionCategory {
+  PUBLIC = 'public',
+  GRADE = 'grade',
+  CHAMPIONSHIP = 'championship',
+}
+
 export enum CompetitionStatus {
   DRAFT = 'draft',
   REGISTRATION_OPEN = 'registration_open',
   REGISTRATION_CLOSED = 'registration_closed',
   IN_PROGRESS = 'in_progress',
+  PAUSED = 'paused',
   COMPLETED = 'completed',
   CANCELLED = 'cancelled',
+  ARCHIVED = 'archived',
 }
 
-export interface IRound {
-  name: string;
-  type: 'online' | 'physical';
-  questions: mongoose.Types.ObjectId[];
-  timer: number;
-  passingScore: number;
-  numberOfQualifiers: number;
-  startDate: Date;
-  endDate: Date;
-  venue?: string;
-  hall?: string;
-  room?: string;
-  seatAllocation?: Map<string, string>;
-  entryQR?: string;
-  attendanceQR?: string;
+export enum RegistrationType {
+  AUTOMATIC = 'automatic',
+  MANUAL_APPROVAL = 'manual_approval',
+  ACCESS_CODE = 'access_code',
 }
+
+export enum DifficultyLevel {
+  BEGINNER = 'beginner',
+  INTERMEDIATE = 'intermediate',
+  ADVANCED = 'advanced',
+  EXPERT = 'expert',
+}
+
+// ─── Section Interface ───────────────────────────────────────────────────────
+
+export interface ISection {
+  name: string;
+  description?: string;
+  questions: mongoose.Types.ObjectId[];
+  settings: {
+    duration: number; // minutes
+    totalMarks: number;
+    passingMarks: number;
+    negativeMarking: boolean;
+    negativeMarkValue?: number;
+    shuffleQuestions: boolean;
+    shuffleOptions: boolean;
+    calculatorAllowed: boolean;
+    skipAllowed: boolean;
+    reviewAllowed: boolean;
+  };
+  order: number;
+}
+
+// ─── Championship Round Interface ────────────────────────────────────────────
+
+export interface IChampionshipRound {
+  name: string;
+  roundNumber: number;
+  type: 'qualifier' | 'quarter_final' | 'semi_final' | 'final' | 'custom';
+  sections: ISection[];
+  qualificationCriteria: {
+    topN?: number;           // top N qualify
+    minimumScore?: number;   // minimum score to qualify
+    minimumPercentage?: number;
+  };
+  schedule: {
+    startDate: Date;
+    endDate: Date;
+  };
+  status: 'upcoming' | 'in_progress' | 'completed';
+}
+
+// ─── Main Competition Interface ──────────────────────────────────────────────
 
 export interface ICompetition extends BaseDocument {
+  // Basic Info
   name: string;
+  category: CompetitionCategory;
   banner?: string;
+  logo?: string;
   description: string;
   organizer: string;
   contact: string;
-  rulebook: string;
+  language: string;
+  difficultyLevel: DifficultyLevel;
+
+  // Eligibility
   eligibility: {
+    type: 'public' | 'selected_grades' | 'selected_schools' | 'invite_only';
     grades: string[];
+    schools?: mongoose.Types.ObjectId[];
     minAge?: number;
     maxAge?: number;
-    schools?: mongoose.Types.ObjectId[];
+    maxParticipants: number;
   };
+
+  // Registration
   registration: {
     startDate: Date;
     endDate: Date;
-    maxParticipants: number;
+    type: RegistrationType;
+    accessCode?: string;
   };
-  competition: {
-    startDate: Date;
-    endDate: Date;
+
+  // Schedule
+  schedule: {
+    competitionStartDate: Date;
+    competitionEndDate: Date;
   };
+
+  // Rulebook
+  rulebook: {
+    content: string;     // rich text or markdown
+    pdfUrl?: string;
+    acceptanceRequired: boolean;
+  };
+
+  // Prize
   prizeDetails: string;
+
+  // Structure — for Public & Grade competitions
+  sections: ISection[];
+
+  // Structure — for Championship competitions
+  rounds: IChampionshipRound[];
+
+  // Status
   status: CompetitionStatus;
-  rounds: IRound[];
   createdBy: mongoose.Types.ObjectId;
+
+  // Analytics
   analytics: {
-    registrations: number;
+    totalRegistrations: number;
+    dailyRegistrations: Map<string, number>;
     attendance: number;
     liveParticipants: number;
-    completionRate: number;
+    studentsStarted: number;
+    studentsCompleted: number;
+    dropOffRate: number;
+    averageScore: number;
+    highestScore: number;
+    lowestScore: number;
+    medianScore: number;
+    passRate: number;
     qualificationRate: number;
-    gradeWisePerformance: Map<string, number>;
-    schoolWisePerformance: Map<string, number>;
+    averageCompletionTime: number;
+    gradeWiseParticipation: Map<string, number>;
+    gradeWiseAvgScore: Map<string, number>;
+    schoolWiseParticipation: Map<string, number>;
+    schoolWiseAvgScore: Map<string, number>;
   };
 }
 
+// ─── Schema ──────────────────────────────────────────────────────────────────
+
+const SectionSchema = new Schema({
+  name: { type: String, required: true, trim: true },
+  description: { type: String, trim: true },
+  questions: [{ type: Schema.Types.ObjectId, ref: 'Question' }],
+  settings: {
+    duration: { type: Number, required: true, default: 30 },
+    totalMarks: { type: Number, required: true, default: 100 },
+    passingMarks: { type: Number, required: true, default: 40 },
+    negativeMarking: { type: Boolean, default: false },
+    negativeMarkValue: { type: Number, default: 0 },
+    shuffleQuestions: { type: Boolean, default: true },
+    shuffleOptions: { type: Boolean, default: true },
+    calculatorAllowed: { type: Boolean, default: false },
+    skipAllowed: { type: Boolean, default: true },
+    reviewAllowed: { type: Boolean, default: true },
+  },
+  order: { type: Number, required: true, default: 0 },
+}, { _id: true });
+
+const ChampionshipRoundSchema = new Schema({
+  name: { type: String, required: true, trim: true },
+  roundNumber: { type: Number, required: true },
+  type: {
+    type: String,
+    required: true,
+    enum: ['qualifier', 'quarter_final', 'semi_final', 'final', 'custom'],
+  },
+  sections: [SectionSchema],
+  qualificationCriteria: {
+    topN: { type: Number },
+    minimumScore: { type: Number },
+    minimumPercentage: { type: Number },
+  },
+  schedule: {
+    startDate: { type: Date, required: true },
+    endDate: { type: Date, required: true },
+  },
+  status: {
+    type: String,
+    enum: ['upcoming', 'in_progress', 'completed'],
+    default: 'upcoming',
+  },
+}, { _id: true });
+
 const CompetitionSchema = new Schema<ICompetition>(
   {
+    // Basic Info
     name: {
       type: String,
       required: [true, 'Competition name is required'],
       trim: true,
     },
-    banner: {
+    category: {
       type: String,
+      required: [true, 'Competition category is required'],
+      enum: Object.values(CompetitionCategory),
+      default: CompetitionCategory.PUBLIC,
     },
+    banner: { type: String },
+    logo: { type: String },
     description: {
       type: String,
       required: [true, 'Description is required'],
@@ -89,26 +231,44 @@ const CompetitionSchema = new Schema<ICompetition>(
       required: [true, 'Contact is required'],
       trim: true,
     },
-    rulebook: {
+    language: {
       type: String,
-      required: [true, 'Rulebook is required'],
+      default: 'English',
+      trim: true,
     },
+    difficultyLevel: {
+      type: String,
+      required: true,
+      enum: Object.values(DifficultyLevel),
+      default: DifficultyLevel.INTERMEDIATE,
+    },
+
+    // Eligibility
     eligibility: {
+      type: {
+        type: String,
+        required: true,
+        enum: ['public', 'selected_grades', 'selected_schools', 'invite_only'],
+        default: 'public',
+      },
       grades: {
         type: [String],
-        required: [true, 'Grades are required'],
-      },
-      minAge: {
-        type: Number,
-      },
-      maxAge: {
-        type: Number,
+        default: [],
       },
       schools: [{
         type: Schema.Types.ObjectId,
         ref: 'School',
       }],
+      minAge: { type: Number },
+      maxAge: { type: Number },
+      maxParticipants: {
+        type: Number,
+        required: [true, 'Max participants is required'],
+        default: 500,
+      },
     },
+
+    // Registration
     registration: {
       startDate: {
         type: Date,
@@ -118,121 +278,83 @@ const CompetitionSchema = new Schema<ICompetition>(
         type: Date,
         required: [true, 'Registration end date is required'],
       },
-      maxParticipants: {
-        type: Number,
-        required: [true, 'Max participants is required'],
+      type: {
+        type: String,
+        required: true,
+        enum: Object.values(RegistrationType),
+        default: RegistrationType.AUTOMATIC,
       },
+      accessCode: { type: String },
     },
-    competition: {
-      startDate: {
+
+    // Schedule
+    schedule: {
+      competitionStartDate: {
         type: Date,
         required: [true, 'Competition start date is required'],
       },
-      endDate: {
+      competitionEndDate: {
         type: Date,
         required: [true, 'Competition end date is required'],
       },
     },
+
+    // Rulebook
+    rulebook: {
+      content: {
+        type: String,
+        required: [true, 'Rulebook content is required'],
+      },
+      pdfUrl: { type: String },
+      acceptanceRequired: {
+        type: Boolean,
+        default: true,
+      },
+    },
+
+    // Prize
     prizeDetails: {
       type: String,
       required: [true, 'Prize details are required'],
     },
+
+    // Structure
+    sections: [SectionSchema],
+    rounds: [ChampionshipRoundSchema],
+
+    // Status
     status: {
       type: String,
       required: true,
       enum: Object.values(CompetitionStatus),
       default: CompetitionStatus.DRAFT,
     },
-    rounds: [{
-      name: {
-        type: String,
-        required: true,
-      },
-      type: {
-        type: String,
-        required: true,
-        enum: ['online', 'physical'],
-      },
-      questions: [{
-        type: Schema.Types.ObjectId,
-        ref: 'Question',
-      }],
-      timer: {
-        type: Number,
-        required: true,
-      },
-      passingScore: {
-        type: Number,
-        required: true,
-      },
-      numberOfQualifiers: {
-        type: Number,
-        required: true,
-      },
-      startDate: {
-        type: Date,
-        required: true,
-      },
-      endDate: {
-        type: Date,
-        required: true,
-      },
-      venue: {
-        type: String,
-      },
-      hall: {
-        type: String,
-      },
-      room: {
-        type: String,
-      },
-      seatAllocation: {
-        type: Map,
-        of: String,
-      },
-      entryQR: {
-        type: String,
-      },
-      attendanceQR: {
-        type: String,
-      },
-    }],
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: [true, 'Created by is required'],
     },
+
+    // Analytics
     analytics: {
-      registrations: {
-        type: Number,
-        default: 0,
-      },
-      attendance: {
-        type: Number,
-        default: 0,
-      },
-      liveParticipants: {
-        type: Number,
-        default: 0,
-      },
-      completionRate: {
-        type: Number,
-        default: 0,
-      },
-      qualificationRate: {
-        type: Number,
-        default: 0,
-      },
-      gradeWisePerformance: {
-        type: Map,
-        of: Number,
-        default: new Map(),
-      },
-      schoolWisePerformance: {
-        type: Map,
-        of: Number,
-        default: new Map(),
-      },
+      totalRegistrations: { type: Number, default: 0 },
+      dailyRegistrations: { type: Map, of: Number, default: new Map() },
+      attendance: { type: Number, default: 0 },
+      liveParticipants: { type: Number, default: 0 },
+      studentsStarted: { type: Number, default: 0 },
+      studentsCompleted: { type: Number, default: 0 },
+      dropOffRate: { type: Number, default: 0 },
+      averageScore: { type: Number, default: 0 },
+      highestScore: { type: Number, default: 0 },
+      lowestScore: { type: Number, default: 0 },
+      medianScore: { type: Number, default: 0 },
+      passRate: { type: Number, default: 0 },
+      qualificationRate: { type: Number, default: 0 },
+      averageCompletionTime: { type: Number, default: 0 },
+      gradeWiseParticipation: { type: Map, of: Number, default: new Map() },
+      gradeWiseAvgScore: { type: Map, of: Number, default: new Map() },
+      schoolWiseParticipation: { type: Map, of: Number, default: new Map() },
+      schoolWiseAvgScore: { type: Map, of: Number, default: new Map() },
     },
   },
   {
@@ -240,9 +362,28 @@ const CompetitionSchema = new Schema<ICompetition>(
   }
 );
 
+// ─── Indexes ─────────────────────────────────────────────────────────────────
+
 CompetitionSchema.index({ status: 1 });
+CompetitionSchema.index({ category: 1 });
 CompetitionSchema.index({ 'registration.startDate': 1, 'registration.endDate': 1 });
-CompetitionSchema.index({ 'competition.startDate': 1, 'competition.endDate': 1 });
+CompetitionSchema.index({ 'schedule.competitionStartDate': 1, 'schedule.competitionEndDate': 1 });
+CompetitionSchema.index({ 'registration.accessCode': 1 });
+
+// ─── Access Code Generation ─────────────────────────────────────────────────
+
+CompetitionSchema.pre('save', function (next) {
+  if (
+    this.category === CompetitionCategory.GRADE &&
+    this.registration.type === RegistrationType.ACCESS_CODE &&
+    !this.registration.accessCode
+  ) {
+    const gradeTag = this.eligibility.grades[0]?.replace(/\s/g, '') || 'GX';
+    const randomPart = Math.random().toString(36).slice(2, 6).toUpperCase();
+    this.registration.accessCode = `MTH-${gradeTag}-${randomPart}`;
+  }
+  next();
+});
 
 const CompetitionModel: Model<ICompetition> = mongoose.models.Competition || mongoose.model<ICompetition>('Competition', CompetitionSchema);
 

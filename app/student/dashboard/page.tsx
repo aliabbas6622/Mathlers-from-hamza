@@ -4,8 +4,7 @@ import Link from 'next/link';
 import connectDB from '@/lib/db/mongodb';
 import ResultModel from '@/models/Result';
 import EnrollmentModel from '@/models/Enrollment';
-import CompetitionModel from '@/models/Competition';
-import { CompetitionStatus } from '@/models/Competition';
+import CompetitionModel, { CompetitionStatus } from '@/models/Competition';
 import GlassCard from '@/components/ui/GlassCard';
 import StatCard from '@/components/ui/StatCard';
 import PrimaryButton from '@/components/ui/PrimaryButton';
@@ -30,10 +29,10 @@ export default async function StudentDashboard() {
   const enrollments = hasValidId 
     ? await EnrollmentModel.find({ student: userId }) 
     : [];
+
   const upcomingCompetitions = await CompetitionModel.find({
-    status: CompetitionStatus.REGISTRATION_OPEN,
-    'competition.startDate': { $gte: new Date() },
-  }).sort({ 'competition.startDate': 1 }).limit(1);
+    status: { $in: [CompetitionStatus.REGISTRATION_OPEN, CompetitionStatus.DRAFT, CompetitionStatus.IN_PROGRESS] }
+  }).sort({ 'schedule.competitionStartDate': 1 }).limit(1);
 
   const totalPoints = results.reduce((sum, r) => sum + (r.score || 0), 0);
   const accuracy = results.length > 0 
@@ -42,6 +41,9 @@ export default async function StudentDashboard() {
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good Morning' : hour < 18 ? 'Good Afternoon' : 'Good Evening';
+
+  const upcomingComp = upcomingCompetitions[0];
+  const startDate = upcomingComp?.schedule?.competitionStartDate || upcomingComp?.competition?.startDate;
 
   return (
     <div className="space-y-8">
@@ -90,33 +92,33 @@ export default async function StudentDashboard() {
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Upcoming Competition */}
-        {upcomingCompetitions.length > 0 ? (
+        {upcomingComp ? (
           <GlassCard className="lg:col-span-2 p-8 bg-gradient-to-br from-brand-primary to-brand-dark text-white">
             <div className="flex justify-between items-start mb-6">
               <div>
-                <span className="text-sm font-medium opacity-90">Upcoming Competition</span>
-                <h2 className="text-3xl font-bold mt-2">{upcomingCompetitions[0].name}</h2>
+                <span className="text-sm font-medium opacity-90">Featured Competition</span>
+                <h2 className="text-3xl font-bold mt-2">{upcomingComp.name}</h2>
               </div>
               <div className="text-right">
                 <p className="text-sm opacity-90">Starts</p>
-                <p className="font-semibold">{new Date(upcomingCompetitions[0].competition.startDate).toLocaleDateString()}</p>
+                <p className="font-semibold">{startDate ? new Date(startDate).toLocaleDateString() : 'TBA'}</p>
               </div>
             </div>
             <div className="flex gap-6 mb-6">
               <div>
                 <p className="text-sm opacity-90">Participants</p>
-                <p className="font-semibold">{upcomingCompetitions[0].analytics?.registrations || 0}</p>
+                <p className="font-semibold">{upcomingComp.analytics?.totalRegistrations ?? upcomingComp.analytics?.registrations ?? 0}</p>
               </div>
               <div>
-                <p className="text-sm opacity-90">Rounds</p>
-                <p className="font-semibold">{upcomingCompetitions[0].rounds?.length || 0}</p>
+                <p className="text-sm opacity-90">Sections</p>
+                <p className="font-semibold">{upcomingComp.sections?.length ?? upcomingComp.rounds?.length ?? 0}</p>
               </div>
               <div>
                 <p className="text-sm opacity-90">Status</p>
-                <p className="font-semibold text-green-300">Registration Open</p>
+                <p className="font-semibold text-green-300 capitalize">{String(upcomingComp.status).replace(/_/g, ' ')}</p>
               </div>
             </div>
-            <Link href="/student/competitions">
+            <Link href={`/student/competitions/${upcomingComp._id.toString()}`}>
               <PrimaryButton variant="secondary" className="w-full">
                 View Competition →
               </PrimaryButton>
@@ -139,14 +141,14 @@ export default async function StudentDashboard() {
         <GlassCard className="p-6">
           <h3 className="text-xl font-bold text-gray-900 mb-4">Quick Actions</h3>
           <div className="space-y-3">
-            <Link href="/student/practice">
-              <PrimaryButton className="w-full">Start Practice</PrimaryButton>
+            <Link href="/student/competitions/join">
+              <PrimaryButton className="w-full">🏷 Join with Code</PrimaryButton>
             </Link>
             <Link href="/student/competitions">
               <PrimaryButton variant="secondary" className="w-full">Browse Competitions</PrimaryButton>
             </Link>
-            <Link href="/student/leaderboard">
-              <PrimaryButton variant="secondary" className="w-full">View Leaderboard</PrimaryButton>
+            <Link href="/student/practice">
+              <PrimaryButton variant="secondary" className="w-full">Start Practice</PrimaryButton>
             </Link>
           </div>
         </GlassCard>

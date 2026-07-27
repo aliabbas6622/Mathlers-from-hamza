@@ -1,12 +1,9 @@
 import { auth } from '@/lib/auth/auth';
 import { redirect } from 'next/navigation';
 import connectDB from '@/lib/db/mongodb';
-import CompetitionModel, { CompetitionStatus } from '@/models/Competition';
+import CompetitionModel from '@/models/Competition';
 import EnrollmentModel from '@/models/Enrollment';
-import GlassCard from '@/components/ui/GlassCard';
-import PrimaryButton from '@/components/ui/PrimaryButton';
-import { Trophy, Calendar, Users, Target } from 'lucide-react';
-import Link from 'next/link';
+import StudentCompetitionCenter from './StudentCompetitionCenter';
 import { isValidObjectId } from '@/lib/utils/isValidObjectId';
 
 export default async function CompetitionsPage() {
@@ -18,87 +15,35 @@ export default async function CompetitionsPage() {
 
   await connectDB();
 
-  // Find all active or upcoming competitions
-  const competitions = await CompetitionModel.find({
-    status: { $in: [CompetitionStatus.REGISTRATION_OPEN, CompetitionStatus.IN_PROGRESS, CompetitionStatus.DRAFT] }
-  }).sort({ 'competition.startDate': 1 });
+  // Fetch all active, upcoming, or draft competitions
+  const rawCompetitions = await CompetitionModel.find().sort({ 'schedule.competitionStartDate': 1 });
+
+  const competitions = JSON.parse(JSON.stringify(rawCompetitions));
 
   const hasValidId = isValidObjectId(session.user.id);
-  const enrollments = hasValidId 
+  const rawEnrollments = hasValidId 
     ? await EnrollmentModel.find({ student: session.user.id }) 
     : [];
 
-  const enrolledIds = enrollments.map(e => e.competition.toString());
+  const enrollments = JSON.parse(JSON.stringify(rawEnrollments));
+
+  const enrollmentMap: Record<string, any> = {};
+  const enrolledCompIds: string[] = [];
+
+  enrollments.forEach((e: any) => {
+    const compId = e.competition.toString();
+    enrollmentMap[compId] = e;
+    enrolledCompIds.push(compId);
+  });
+
+  const enrolledCompetitions = competitions.filter((c: any) => enrolledCompIds.includes(c._id.toString()));
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Competitions</h1>
-        <p className="text-gray-600">Join competitions and compete with students worldwide</p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {competitions.map((comp: any) => {
-          const isEnrolled = enrolledIds.includes(comp._id.toString());
-          const startDate = comp.competition?.startDate ? new Date(comp.competition.startDate).toLocaleDateString() : 'TBA';
-          const participants = comp.analytics?.registrations || 0;
-          
-          return (
-            <Link href={`/student/competitions/${comp._id.toString()}`} key={comp._id.toString()} className="block hover:scale-105 transition-transform">
-              <GlassCard className="p-6 h-full flex flex-col">
-                <div className="relative mb-4">
-                  <div className="w-full h-32 bg-gradient-to-br from-brand-primary to-brand-dark rounded-xl flex items-center justify-center">
-                    <Trophy className="w-12 h-12 text-white opacity-80" />
-                  </div>
-                  <span className={`absolute top-3 right-3 text-xs px-3 py-1 rounded-full font-semibold ${
-                    String(comp.status) === 'in_progress' ? 'bg-green-500 text-white' :
-                    String(comp.status) === 'registration_open' ? 'bg-blue-500 text-white' :
-                    'bg-gray-500 text-white'
-                  }`}>
-                    {String(comp.status).replace('_', ' ').toUpperCase()}
-                  </span>
-                </div>
-
-                <h3 className="text-xl font-bold text-gray-900 mb-2">{comp.name}</h3>
-                <p className="text-gray-600 text-sm mb-4 line-clamp-2 flex-grow">{comp.description}</p>
-
-                <div className="space-y-2 mb-6">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Calendar className="w-4 h-4 text-brand-primary" />
-                    <span>{startDate}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Users className="w-4 h-4 text-blue-500" />
-                    <span>{participants} Participants</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Target className="w-4 h-4 text-orange-500" />
-                    <span>{comp.rounds?.length || 0} Rounds</span>
-                  </div>
-                </div>
-
-                {isEnrolled ? (
-                  <PrimaryButton variant="secondary" className="w-full pointer-events-none text-green-700 bg-green-50 border-green-200">
-                    ✓ Enrolled
-                  </PrimaryButton>
-                ) : (
-                  <PrimaryButton className="w-full pointer-events-none">
-                    View Details
-                  </PrimaryButton>
-                )}
-              </GlassCard>
-            </Link>
-          );
-        })}
-      </div>
-
-      {competitions.length === 0 && (
-        <GlassCard className="p-12 text-center">
-          <Trophy className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-          <p className="text-gray-600 mb-2">No competitions available yet.</p>
-          <p className="text-sm text-gray-500">Check back soon for new competitions!</p>
-        </GlassCard>
-      )}
-    </div>
+    <StudentCompetitionCenter
+      competitions={competitions}
+      enrolledCompetitions={enrolledCompetitions}
+      enrollmentMap={enrollmentMap}
+      studentName={session.user.name || 'Student'}
+    />
   );
 }
