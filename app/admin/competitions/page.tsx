@@ -4,8 +4,23 @@ import connectDB from '@/lib/db/mongodb';
 import CompetitionModel from '@/models/Competition';
 import GlassCard from '@/components/ui/GlassCard';
 import PrimaryButton from '@/components/ui/PrimaryButton';
-import { Search, Filter, Plus, Edit, Trash2, Trophy } from 'lucide-react';
+import { Plus, Edit, Trophy } from 'lucide-react';
 import Link from 'next/link';
+
+type CompetitionRow = {
+  _id: { toString(): string };
+  name: string;
+  description?: string;
+  category?: string;
+  status?: string;
+  schedule?: { competitionStartDate?: Date };
+  competition?: { startDate?: Date };
+  analytics?: { totalRegistrations?: number; registrations?: number };
+  eligibility?: { maxParticipants?: number };
+  registration?: { maxParticipants?: number };
+  sections?: unknown[];
+  rounds?: unknown[];
+};
 
 export default async function CompetitionsPage() {
   const session = await auth();
@@ -16,7 +31,11 @@ export default async function CompetitionsPage() {
 
   await connectDB();
 
-  const competitions = await CompetitionModel.find().sort({ createdAt: -1 }).limit(50);
+  const competitions = await CompetitionModel.find()
+    .select('name description category status schedule competition analytics eligibility registration sections rounds createdAt')
+    .sort({ createdAt: -1 })
+    .limit(50)
+    .lean<CompetitionRow[]>();
 
   const categoryIcon: Record<string, string> = { public: '🌍', grade: '🏫', championship: '🥊' };
 
@@ -52,7 +71,7 @@ export default async function CompetitionsPage() {
               </tr>
             </thead>
             <tbody>
-              {competitions.map((comp: any) => {
+              {competitions.map((comp) => {
                 const startDate = comp.schedule?.competitionStartDate || comp.competition?.startDate;
                 const totalRegs = comp.analytics?.totalRegistrations ?? comp.analytics?.registrations ?? 0;
                 const maxParts = comp.eligibility?.maxParticipants || comp.registration?.maxParticipants || '∞';

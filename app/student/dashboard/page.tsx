@@ -11,6 +11,29 @@ import PrimaryButton from '@/components/ui/PrimaryButton';
 import { Flame, Trophy, Target, TrendingUp, Bell } from 'lucide-react';
 import { isValidObjectId } from '@/lib/utils/isValidObjectId';
 
+type ResultRow = {
+  _id: { toString(): string };
+  type?: string;
+  score?: number;
+  accuracy?: number;
+  completedAt?: Date;
+};
+
+type EnrollmentRow = {
+  _id: { toString(): string };
+};
+
+type UpcomingCompetitionRow = {
+  _id: { toString(): string };
+  name: string;
+  status: string;
+  schedule?: { competitionStartDate?: Date };
+  competition?: { startDate?: Date };
+  analytics?: { totalRegistrations?: number; registrations?: number };
+  sections?: unknown[];
+  rounds?: unknown[];
+};
+
 export default async function StudentDashboard() {
   const session = await auth();
   
@@ -23,16 +46,27 @@ export default async function StudentDashboard() {
   const userId = session.user.id;
   const hasValidId = isValidObjectId(userId);
 
-  const results = hasValidId 
-    ? await ResultModel.find({ student: userId }).sort({ completedAt: -1 }) 
-    : [];
-  const enrollments = hasValidId 
-    ? await EnrollmentModel.find({ student: userId }) 
-    : [];
-
-  const upcomingCompetitions = await CompetitionModel.find({
-    status: { $in: [CompetitionStatus.REGISTRATION_OPEN, CompetitionStatus.DRAFT, CompetitionStatus.IN_PROGRESS] }
-  }).sort({ 'schedule.competitionStartDate': 1 }).limit(1);
+  const [results, enrollments, upcomingCompetitions] = await Promise.all([
+    hasValidId
+      ? ResultModel.find({ student: userId })
+        .select('type score accuracy completedAt')
+        .sort({ completedAt: -1 })
+        .limit(5)
+        .lean<ResultRow[]>()
+      : Promise.resolve([]),
+    hasValidId
+      ? EnrollmentModel.find({ student: userId })
+        .select('_id')
+        .lean<EnrollmentRow[]>()
+      : Promise.resolve([]),
+    CompetitionModel.find({
+      status: { $in: [CompetitionStatus.REGISTRATION_OPEN, CompetitionStatus.DRAFT, CompetitionStatus.IN_PROGRESS] }
+    })
+      .select('name status schedule analytics sections rounds')
+      .sort({ 'schedule.competitionStartDate': 1 })
+      .limit(1)
+      .lean<UpcomingCompetitionRow[]>(),
+  ]);
 
   const totalPoints = results.reduce((sum, r) => sum + (r.score || 0), 0);
   const accuracy = results.length > 0 
@@ -53,7 +87,7 @@ export default async function StudentDashboard() {
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
             {greeting}, {session.user.name} 👋
           </h1>
-          <p className="text-lg text-gray-600">Ready for today's challenge?</p>
+          <p className="text-lg text-gray-600">Ready for today&apos;s challenge?</p>
         </div>
         <div className="flex gap-4">
           <Link href="/student/notifications" className="p-3 bg-white/80 backdrop-blur-md rounded-xl hover:bg-white transition-all">
@@ -158,7 +192,7 @@ export default async function StudentDashboard() {
       <GlassCard className="p-6">
         <h2 className="text-xl font-bold text-gray-900 mb-6">Recent Activity</h2>
         <div className="space-y-4">
-          {results.slice(0, 5).map((result: any) => (
+          {results.map((result) => (
             <div key={result._id.toString()} className="flex items-center gap-4 p-4 bg-white/50 rounded-xl">
               <div className="w-12 h-12 bg-brand-lighter rounded-xl flex items-center justify-center">
                 <Trophy className="w-6 h-6 text-brand-primary" />
@@ -172,7 +206,7 @@ export default async function StudentDashboard() {
                 </p>
               </div>
               <span className="text-sm text-gray-500">
-                {new Date(result.completedAt).toLocaleDateString()}
+                {result.completedAt ? new Date(result.completedAt).toLocaleDateString() : 'Recently'}
               </span>
             </div>
           ))}

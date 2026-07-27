@@ -5,8 +5,39 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import GlassCard from '@/components/ui/GlassCard';
 import PrimaryButton from '@/components/ui/PrimaryButton';
-import MathRenderer from '@/components/math/MathRenderer';
-import { Clock, CheckCircle2, ChevronLeft, ChevronRight, Send, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { MathRenderer } from '@/components/math/MathRenderer';
+import { Clock, ChevronLeft, ChevronRight, Send, AlertTriangle, ShieldCheck } from 'lucide-react';
+
+type ExamOption = {
+  optionText: string;
+};
+
+type ExamQuestion = {
+  _id: string;
+  question: string;
+  options?: ExamOption[];
+  marks?: number;
+};
+
+type ExamSection = {
+  name: string;
+  questions?: ExamQuestion[];
+  settings?: {
+    duration?: number;
+    negativeMarking?: boolean;
+    negativeMarkValue?: number;
+  };
+};
+
+type ExamCompetition = {
+  name: string;
+  sections?: ExamSection[];
+};
+
+type StartCompetitionResponse = {
+  competition?: ExamCompetition;
+  error?: string;
+};
 
 export default function CompetitionExamPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -15,12 +46,11 @@ export default function CompetitionExamPage({ params }: { params: Promise<{ id: 
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [competition, setCompetition] = useState<any>(null);
-  const [enrollment, setEnrollment] = useState<any>(null);
+  const [competition, setCompetition] = useState<ExamCompetition | null>(null);
 
   const [activeSectionIdx, setActiveSectionIdx] = useState(0);
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, any>>({});
+  const [answers, setAnswers] = useState<Record<string, number>>({});
   const [submitting, setSubmitting] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
@@ -28,14 +58,13 @@ export default function CompetitionExamPage({ params }: { params: Promise<{ id: 
     const startExam = async () => {
       try {
         const res = await fetch(`/api/competitions/${competitionId}/start`);
-        const data = await res.json();
+        const data = await res.json() as StartCompetitionResponse;
 
         if (!res.ok) throw new Error(data.error || 'Failed to start exam');
 
-        setCompetition(data.competition);
-        setEnrollment(data.enrollment);
-      } catch (err: any) {
-        setError(err.message);
+        setCompetition(data.competition || null);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed to start exam');
       } finally {
         setLoading(false);
       }
@@ -71,10 +100,10 @@ export default function CompetitionExamPage({ params }: { params: Promise<{ id: 
   const sections = competition?.sections || [];
   const currentSection = sections[activeSectionIdx] || {};
   const questions = currentSection.questions || [];
-  const currentQuestion = questions[currentQuestionIdx] || {};
+  const currentQuestion = questions[currentQuestionIdx];
 
   const handleOptionSelect = (optionIdx: number) => {
-    if (!currentQuestion._id) return;
+    if (!currentQuestion?._id) return;
     setAnswers(prev => ({ ...prev, [currentQuestion._id]: optionIdx }));
   };
 
@@ -93,8 +122,8 @@ export default function CompetitionExamPage({ params }: { params: Promise<{ id: 
       }
 
       router.push(`/student/competitions/${competitionId}/results`);
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed to submit exam');
       setSubmitting(false);
     }
   };
@@ -107,7 +136,7 @@ export default function CompetitionExamPage({ params }: { params: Promise<{ id: 
           <span className="text-xs font-semibold px-3 py-1 bg-brand-lighter text-brand-primary rounded-full uppercase">
             LIVE COMPETITION EXAM
           </span>
-          <h1 className="text-2xl font-bold text-gray-900 mt-1">{competition.name}</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mt-1">{competition?.name}</h1>
         </div>
 
         <div className="flex items-center gap-4">
@@ -124,7 +153,7 @@ export default function CompetitionExamPage({ params }: { params: Promise<{ id: 
 
       {/* Section Tabs */}
       <div className="flex gap-2 border-b border-gray-200 pb-2 overflow-x-auto">
-        {sections.map((sec: any, idx: number) => (
+        {sections.map((sec, idx) => (
           <button
             key={idx}
             onClick={() => {
@@ -146,7 +175,7 @@ export default function CompetitionExamPage({ params }: { params: Promise<{ id: 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Question Canvas */}
         <div className="lg:col-span-3 space-y-6">
-          {currentQuestion._id ? (
+          {currentQuestion?._id ? (
             <GlassCard className="p-6 md:p-8 space-y-6">
               <div className="flex justify-between items-center border-b border-gray-100 pb-4">
                 <span className="text-sm font-bold text-gray-700">
@@ -159,12 +188,12 @@ export default function CompetitionExamPage({ params }: { params: Promise<{ id: 
 
               {/* Question Text with Math LaTeX renderer */}
               <div className="text-gray-900 text-lg font-medium leading-relaxed">
-                <MathRenderer math={currentQuestion.question} inline={false} />
+                <MathRenderer display>{currentQuestion.question}</MathRenderer>
               </div>
 
               {/* Options */}
               <div className="space-y-3 pt-4">
-                {currentQuestion.options?.map((opt: any, oIdx: number) => {
+                {currentQuestion.options?.map((opt, oIdx) => {
                   const isSelected = answers[currentQuestion._id] === oIdx;
                   return (
                     <div
@@ -182,7 +211,7 @@ export default function CompetitionExamPage({ params }: { params: Promise<{ id: 
                         {String.fromCharCode(65 + oIdx)}
                       </div>
                       <div className="text-gray-900 text-base">
-                        <MathRenderer math={opt.optionText} inline />
+                        <MathRenderer>{opt.optionText}</MathRenderer>
                       </div>
                     </div>
                   );
@@ -219,7 +248,7 @@ export default function CompetitionExamPage({ params }: { params: Promise<{ id: 
           <GlassCard className="p-6 space-y-4">
             <h3 className="font-bold text-gray-900 border-b border-gray-100 pb-3">Question Palette</h3>
             <div className="grid grid-cols-5 gap-2">
-              {questions.map((q: any, i: number) => {
+              {questions.map((q, i) => {
                 const isAnswered = answers[q._id] !== undefined;
                 const isCurrent = i === currentQuestionIdx;
                 return (
