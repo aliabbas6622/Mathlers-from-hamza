@@ -8,9 +8,16 @@ import ResultModel, { ResultType } from '@/models/Result';
 import QuestionModel from '@/models/Question';
 import UserModel from '@/models/User';
 
+type GradingQuestion = {
+  _id: mongoose.Types.ObjectId;
+  correctAnswer: 'A' | 'B' | 'C' | 'D';
+  explanation?: string;
+  marks?: number;
+};
+
 const submitSchema = z.object({
   answers: z.record(z.string(), z.enum(['A', 'B', 'C', 'D'])),
-  timeTaken: z.number().int().min(0),
+  timeTaken: z.number().int().min(0).max(86_400),
 });
 
 export async function POST(
@@ -23,55 +30,75 @@ export async function POST(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  if (session.user.role !== 'student') {
+    return NextResponse.json({ error: 'Student access is required' }, { status: 403 });
+  }
+
   const { id } = await params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json({ error: 'Invalid practice set' }, { status: 400 });
   }
 
-  const body = await request.json();
-  const validatedData = submitSchema.parse(body);
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+  }
 
-  await connectDB();
+  const parsedData = submitSchema.safeParse(body);
+  if (!parsedData.success) {
+    return NextResponse.json({ error: 'Invalid practice answers' }, { status: 400 });
+  }
 
-  const practiceSet = await PracticeSetModel.findOne({
-    _id: id,
-    isPublished: true,
-  }).populate({
+  try {
+    await connectDB();
+    const now = new Date();
+    const practiceSet = await PracticeSetModel.findOne({
+      _id: id,
+      isPublished: true,
+      'availability.startDate': { $lte: now },
+      'availability.endDate': { $gte: now },
+    }).populate({
     path: 'questions',
     match: { status: 'active' },
     select: 'correctAnswer explanation marks analytics',
   });
 
-  if (!practiceSet) {
-    return NextResponse.json({ error: 'Practice set not found' }, { status: 404 });
-  }
+    if (!practiceSet) {
+      return NextResponse.json({ error: 'Practice set not found or is no longer available' }, { status: 404 });
+    }
 
-  const questions = practiceSet.questions as any[];
-  const gradedAnswers = questions.map((question) => {
-    const selectedAnswer = validatedData.answers[question._id.toString()] || null;
-    const isCorrect = selectedAnswer === question.correctAnswer;
+    const questions = practiceSet.questions as unknown as GradingQuestion[];
+    if (questions.length === 0) {
+      return NextResponse.json({ error: 'This practice set has no active questions' }, { status: 409 });
+    }
 
-    return {
-      questionId: question._id,
-      selectedAnswer,
-      isCorrect,
-      timeSpent: 0,
-      correctAnswer: question.correctAnswer,
-      explanation: question.explanation,
-    };
-  });
+    const gradedAnswers = questions.map((question) => {
+      const selectedAnswer = parsedData.data.answers[question._id.toString()] || null;
+      const isCorrect = selectedAnswer === question.correctAnswer;
 
-  const correctAnswers = gradedAnswers.filter((answer) => answer.isCorrect).length;
-  const wrongAnswers = gradedAnswers.filter((answer) => answer.selectedAnswer && !answer.isCorrect).length;
-  const skipped = gradedAnswers.filter((answer) => !answer.selectedAnswer).length;
-  const totalMarks = questions.reduce((sum, question) => sum + (question.marks || 1), 0);
-  const score = gradedAnswers.reduce((sum, answer, index) => (
-    answer.isCorrect ? sum + (questions[index].marks || 1) : sum
-  ), 0);
-  const accuracy = questions.length ? Math.round((correctAnswers / questions.length) * 100) : 0;
+      return {
+        questionId: question._id,
+        selectedAnswer,
+        isCorrect,
+        timeSpent: 0,
+        correctAnswer: question.correctAnswer,
+        explanation: question.explanation,
+      };
+    });
 
-  const result = await ResultModel.create({
+    const correctAnswers = gradedAnswers.filter((answer) => answer.isCorrect).length;
+    const wrongAnswers = gradedAnswers.filter((answer) => answer.selectedAnswer && !answer.isCorrect).length;
+    const skipped = gradedAnswers.filter((answer) => !answer.selectedAnswer).length;
+    const totalMarks = questions.reduce((sum, question) => sum + (question.marks || 1), 0);
+    const score = gradedAnswers.reduce((sum, answer, index) => (
+      answer.isCorrect ? sum + (questions[index].marks || 1) : sum
+    ), 0);
+    const accuracy = Math.round((correctAnswers / questions.length) * 100);
+
+    const result = await ResultModel.create({
     student: session.user.id,
     type: ResultType.PRACTICE,
     practiceSet: practiceSet._id,
@@ -81,12 +108,17 @@ export async function POST(
     wrongAnswers,
     skipped,
     accuracy,
-    timeTaken: validatedData.timeTaken,
-    answers: gradedAnswers.map(({ correctAnswer, explanation, ...answer }) => answer),
+    timeTaken: parsedData.data.timeTaken,
+    answers: gradedAnswers.map((answer) => ({
+      questionId: answer.questionId,
+      selectedAnswer: answer.selectedAnswer,
+      isCorrect: answer.isCorrect,
+      timeSpent: answer.timeSpent,
+    })),
     completedAt: new Date(),
-  });
+    });
 
-  await Promise.all([
+    await Promise.all([
     PracticeSetModel.updateOne(
       { _id: practiceSet._id },
       { $inc: { 'analytics.totalAttempts': 1 } }
@@ -117,9 +149,9 @@ export async function POST(
         $set: { 'analytics.lastUsedDate': new Date() },
       }
     )),
-  ]);
+    ]);
 
-  return NextResponse.json({
+    return NextResponse.json({
     result: {
       id: result._id.toString(),
       score,
@@ -128,7 +160,7 @@ export async function POST(
       wrongAnswers,
       skipped,
       accuracy,
-      timeTaken: validatedData.timeTaken,
+      timeTaken: parsedData.data.timeTaken,
       answers: gradedAnswers.map((answer) => ({
         questionId: answer.questionId.toString(),
         selectedAnswer: answer.selectedAnswer,
@@ -137,5 +169,9 @@ export async function POST(
         explanation: answer.explanation,
       })),
     },
-  });
+    });
+  } catch (error) {
+    console.error('Unable to submit practice', error);
+    return NextResponse.json({ error: 'Unable to save your result. Please try again.' }, { status: 500 });
+  }
 }

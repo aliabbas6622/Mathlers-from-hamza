@@ -1,17 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { X } from 'lucide-react';
 import PrimaryButton from '@/components/ui/PrimaryButton';
-import GlassCard from '@/components/ui/GlassCard';
 import Modal from '@/components/ui/Modal';
+import { MathRenderer } from '@/components/math';
 
 interface QuestionFormData {
   subject: string;
   grade: string;
   chapter: string;
   topic: string;
+  subtopic?: string;
   question: string;
   options: {
     A: string;
@@ -47,6 +47,13 @@ interface Chapter {
 interface Topic {
   _id: string;
   name: string;
+  subtopics: Array<{ _id: string; name: string }>;
+}
+
+interface LookupResponse<T> {
+  success?: boolean;
+  data?: T[];
+  error?: string;
 }
 
 interface QuestionFormProps {
@@ -68,93 +75,125 @@ export default function QuestionForm({
 }: QuestionFormProps) {
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
-  const [selectedGrade, setSelectedGrade] = useState<string>(initialData?.grade || '');
-  const [selectedSubject, setSelectedSubject] = useState<string>(initialData?.subject || '');
-  const [selectedChapter, setSelectedChapter] = useState<string>(initialData?.chapter || '');
   const [isLoading, setIsLoading] = useState(false);
+  const [curriculumError, setCurriculumError] = useState('');
+  const [submitError, setSubmitError] = useState('');
+  const defaultValues = useMemo<QuestionFormData>(() => ({
+    subject: '',
+    grade: '',
+    chapter: '',
+    topic: '',
+    subtopic: '',
+    question: '',
+    options: { A: '', B: '', C: '', D: '' },
+    correctAnswer: 'A',
+    explanation: '',
+    difficulty: 'medium',
+    marks: 1,
+    estimatedTime: 60,
+    status: 'active'
+  }), []);
 
   const {
     register,
     handleSubmit,
-    setValue,
     watch,
     formState: { errors },
-    reset
+    reset,
+    setValue
   } = useForm<QuestionFormData>({
-    defaultValues: initialData || {
-      subject: '',
-      grade: '',
-      chapter: '',
-      topic: '',
-      question: '',
-      options: { A: '', B: '', C: '', D: '' },
-      correctAnswer: 'A',
-      explanation: '',
-      difficulty: 'medium',
-      marks: 1,
-      estimatedTime: 60,
-      status: 'active'
-    }
+    defaultValues: initialData || defaultValues
   });
 
   const watchedGrade = watch('grade');
   const watchedSubject = watch('subject');
   const watchedChapter = watch('chapter');
+  const watchedTopic = watch('topic');
+  const watchedQuestion = watch('question');
+  const watchedOptions = watch('options');
+  const watchedExplanation = watch('explanation');
 
-  // Fetch chapters when grade changes
-  useEffect(() => {
-    if (watchedGrade && watchedSubject) {
-      fetchChapters(watchedGrade, watchedSubject);
-    }
-  }, [watchedGrade, watchedSubject]);
-
-  // Fetch topics when chapter changes
-  useEffect(() => {
-    if (watchedChapter) {
-      fetchTopics(watchedChapter);
-    }
-  }, [watchedChapter]);
-
-  const fetchChapters = async (gradeId: string, subjectId: string) => {
+  const fetchChapters = useCallback(async (gradeId: string, subjectId: string) => {
     try {
+      setCurriculumError('');
       const res = await fetch(`/api/admin/chapters?grade=${gradeId}&subject=${subjectId}`);
-      const data = await res.json();
-      if (data.success) {
+      if (!res.ok) throw new Error('Unable to load chapters. Try again.');
+      const data = await res.json() as LookupResponse<Chapter>;
+      if (data.success && data.data) {
         setChapters(data.data);
+      } else {
+        throw new Error(data.error || 'Unable to load chapters. Try again.');
       }
     } catch (error) {
       console.error('Error fetching chapters:', error);
+      setChapters([]);
+      setCurriculumError(error instanceof Error ? error.message : 'Unable to load chapters. Try again.');
     }
-  };
+  }, []);
 
-  const fetchTopics = async (chapterId: string) => {
+  const fetchTopics = useCallback(async (chapterId: string, subjectId: string) => {
     try {
-      const res = await fetch(`/api/admin/topics?chapter=${chapterId}`);
-      const data = await res.json();
-      if (data.success) {
+      setCurriculumError('');
+      const res = await fetch(`/api/admin/topics?chapter=${chapterId}&subject=${subjectId}`);
+      if (!res.ok) throw new Error('Unable to load topics. Try again.');
+      const data = await res.json() as LookupResponse<Topic>;
+      if (data.success && data.data) {
         setTopics(data.data);
+      } else {
+        throw new Error(data.error || 'Unable to load topics. Try again.');
       }
     } catch (error) {
       console.error('Error fetching topics:', error);
+      setTopics([]);
+      setCurriculumError(error instanceof Error ? error.message : 'Unable to load topics. Try again.');
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      reset(initialData || defaultValues);
+    }
+  }, [defaultValues, initialData, isOpen, reset]);
+
+  useEffect(() => {
+    if (watchedGrade && watchedSubject) {
+      fetchChapters(watchedGrade, watchedSubject);
+    } else {
+      setChapters([]);
+    }
+  }, [fetchChapters, watchedGrade, watchedSubject]);
+
+  useEffect(() => {
+    if (watchedChapter && watchedSubject) {
+      fetchTopics(watchedChapter, watchedSubject);
+    } else {
+      setTopics([]);
+    }
+  }, [fetchTopics, watchedChapter, watchedSubject]);
+
+  const selectedTopic = topics.find((topic) => topic._id === watchedTopic);
 
   const handleFormSubmit = async (data: QuestionFormData) => {
     setIsLoading(true);
+    setSubmitError('');
     try {
       await onSubmit(data);
       reset();
       onClose();
     } catch (error) {
       console.error('Error submitting question:', error);
+      setSubmitError(error instanceof Error ? error.message : 'Unable to save the question. Try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={initialData ? 'Edit Question' : 'Add New Question'}>
+    <Modal isOpen={isOpen} onClose={onClose} title={initialData ? 'Edit Question' : 'Add New Question'} size="xl">
       <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+        <div className="border-y border-gray-200 py-4 text-sm text-gray-600">
+          Use standard text or LaTeX in any question, option, or explanation. Inline math uses <code className="rounded bg-gray-100 px-1.5 py-0.5">$x^2$</code>; display math uses <code className="rounded bg-gray-100 px-1.5 py-0.5">$$x^2$$</code>.
+        </div>
         {/* Subject and Grade Selection */}
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -162,7 +201,14 @@ export default function QuestionForm({
               Subject *
             </label>
             <select
-              {...register('subject', { required: 'Subject is required' })}
+              {...register('subject', {
+                required: 'Subject is required',
+                onChange: () => {
+                  setValue('chapter', '');
+                  setValue('topic', '');
+                  setValue('subtopic', '');
+                }
+              })}
               className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none"
             >
               <option value="">Select Subject</option>
@@ -182,7 +228,14 @@ export default function QuestionForm({
               Grade *
             </label>
             <select
-              {...register('grade', { required: 'Grade is required' })}
+              {...register('grade', {
+                required: 'Grade is required',
+                onChange: () => {
+                  setValue('chapter', '');
+                  setValue('topic', '');
+                  setValue('subtopic', '');
+                }
+              })}
               className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none"
             >
               <option value="">Select Grade</option>
@@ -205,7 +258,13 @@ export default function QuestionForm({
               Chapter *
             </label>
             <select
-              {...register('chapter', { required: 'Chapter is required' })}
+              {...register('chapter', {
+                required: 'Chapter is required',
+                onChange: () => {
+                  setValue('topic', '');
+                  setValue('subtopic', '');
+                }
+              })}
               disabled={!watchedGrade || !watchedSubject}
               className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none disabled:bg-gray-100"
             >
@@ -226,7 +285,10 @@ export default function QuestionForm({
               Topic *
             </label>
             <select
-              {...register('topic', { required: 'Topic is required' })}
+              {...register('topic', {
+                required: 'Topic is required',
+                onChange: () => setValue('subtopic', '')
+              })}
               disabled={!watchedChapter}
               className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none disabled:bg-gray-100"
             >
@@ -243,17 +305,37 @@ export default function QuestionForm({
           </div>
         </div>
 
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Subtopic {selectedTopic?.subtopics?.length ? '*' : '(optional)'}
+          </label>
+          <select
+            {...register('subtopic', { required: selectedTopic?.subtopics?.length ? 'Subtopic is required' : false })}
+            disabled={!watchedTopic || !selectedTopic?.subtopics?.length}
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none disabled:bg-gray-100"
+          >
+            <option value="">{selectedTopic?.subtopics?.length ? 'Select Subtopic' : 'No subtopics configured'}</option>
+            {selectedTopic?.subtopics?.map((subtopic) => (
+              <option key={subtopic._id} value={subtopic._id}>{subtopic.name}</option>
+            ))}
+          </select>
+          {errors.subtopic && <p className="text-red-500 text-sm mt-1">{errors.subtopic.message}</p>}
+        </div>
+
+        {curriculumError && <div role="alert" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">{curriculumError}</div>}
+
         {/* Question Text */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Question *
           </label>
           <textarea
-            {...register('question', { required: 'Question is required' })}
+            {...register('question', { required: 'Question is required', maxLength: { value: 2000, message: 'Keep the question under 2,000 characters' } })}
             rows={3}
             className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none resize-none"
-            placeholder="Enter your question here..."
+            placeholder="Example: Solve $x^2 = 9$."
           />
+          <div className="mt-2 flex justify-between text-xs text-gray-500"><span>Math notation is rendered for students automatically.</span><span>{watchedQuestion?.length || 0}/2,000</span></div>
           {errors.question && (
             <p className="text-red-500 text-sm mt-1">{errors.question.message}</p>
           )}
@@ -271,9 +353,9 @@ export default function QuestionForm({
               </span>
               <input
                 type="text"
-                {...register(`options.${option}` as any, { required: `Option ${option} is required` })}
+                {...register(`options.${option}`, { required: `Option ${option} is required`, maxLength: { value: 500, message: `Keep option ${option} under 500 characters` } })}
                 className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                placeholder={`Enter option ${option}`}
+                placeholder={`Option ${option}; LaTeX supported`}
               />
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -297,15 +379,27 @@ export default function QuestionForm({
             Explanation *
           </label>
           <textarea
-            {...register('explanation', { required: 'Explanation is required' })}
+            {...register('explanation', { required: 'Explanation is required', maxLength: { value: 4000, message: 'Keep the explanation under 4,000 characters' } })}
             rows={3}
             className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none resize-none"
-            placeholder="Explain why the correct answer is correct..."
+            placeholder="Explain the method. LaTeX is supported here too."
           />
+          <div className="mt-2 text-right text-xs text-gray-500">{watchedExplanation?.length || 0}/4,000</div>
           {errors.explanation && (
             <p className="text-red-500 text-sm mt-1">{errors.explanation.message}</p>
           )}
         </div>
+
+        {(watchedQuestion || watchedExplanation || Object.values(watchedOptions || {}).some(Boolean)) && (
+          <section aria-label="Question preview" className="border-y border-gray-200 py-5">
+            <div className="mb-3 flex items-center justify-between"><h3 className="font-semibold text-gray-950">Student preview</h3><span className="text-xs text-gray-500">Math rendering is checked here before publishing.</span></div>
+            <div className="space-y-3 text-sm text-gray-800">
+              {watchedQuestion && <MathRenderer display className="font-medium" fallbackClassName="font-mono text-xs text-gray-700">{watchedQuestion}</MathRenderer>}
+              <div className="grid gap-2 sm:grid-cols-2">{(['A', 'B', 'C', 'D'] as const).map((option) => watchedOptions?.[option] ? <div key={option} className="flex gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2"><span className="font-semibold text-brand-primary">{option}</span><MathRenderer fallbackClassName="font-mono text-xs text-gray-700">{watchedOptions[option]}</MathRenderer></div> : null)}</div>
+              {watchedExplanation && <div className="border-t border-gray-100 pt-3"><p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Explanation</p><MathRenderer display fallbackClassName="font-mono text-xs text-gray-700">{watchedExplanation}</MathRenderer></div>}
+            </div>
+          </section>
+        )}
 
         {/* Difficulty, Marks, and Time */}
         <div className="grid grid-cols-3 gap-4">
@@ -364,6 +458,7 @@ export default function QuestionForm({
         </div>
 
         {/* Submit Button */}
+        {submitError && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{submitError}</div>}
         <div className="flex gap-4 pt-4">
           <PrimaryButton
             type="button"

@@ -14,7 +14,7 @@ export default async function StudentLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-red-50 to-white">
+    <div data-portal="student" className="min-h-screen">
       <StudentSidebar />
       <main className="ml-64 p-8">
         {children}

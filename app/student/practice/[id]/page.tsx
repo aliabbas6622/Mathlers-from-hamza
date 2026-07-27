@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import GlassCard from '@/components/ui/GlassCard';
 import PrimaryButton from '@/components/ui/PrimaryButton';
 import Loading from '@/components/ui/Loading';
 import EmptyState from '@/components/ui/EmptyState';
+import { MathRenderer } from '@/components/math/MathRenderer';
 import { CheckCircle2, ChevronLeft, ChevronRight, Clock, XCircle } from 'lucide-react';
 
 type OptionKey = 'A' | 'B' | 'C' | 'D';
@@ -44,6 +45,16 @@ type PracticeResult = {
   }[];
 };
 
+async function responseData(response: Response) {
+  const text = await response.text();
+
+  try {
+    return text ? JSON.parse(text) : {};
+  } catch {
+    return { error: response.status === 401 ? 'Your session has ended. Please sign in again.' : 'The server returned an unexpected response.' };
+  }
+}
+
 export default function PracticeSessionPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -55,29 +66,59 @@ export default function PracticeSessionPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PracticeResult | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const isMounted = useRef(true);
+  const submitting = useRef(false);
+  const autoSubmitStarted = useRef(false);
 
   useEffect(() => {
-    let isMounted = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    isMounted.current = true;
+    autoSubmitStarted.current = false;
+    submitting.current = false;
 
     async function loadPracticeSet() {
+      if (isMounted.current) {
+        setIsLoading(true);
+      }
+
       try {
-        const response = await fetch(`/api/practice/${params.id}`);
-        const data = await response.json();
+        const response = await fetch(`/api/practice/${params.id}`, {
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+        const data = await responseData(response);
 
         if (!response.ok) {
           throw new Error(data.error || 'Unable to load practice set');
         }
 
-        if (isMounted) {
+        if (isMounted.current) {
           setPracticeSet(data.practiceSet);
           setTimeLeft(data.practiceSet.timeLimit || 1800);
+          setResult(null);
+          setAnswers({});
+          setCurrentQuestion(0);
+          setError(null);
         }
       } catch (loadError) {
-        if (isMounted) {
+        if (loadError instanceof DOMException && loadError.name === 'AbortError') {
+          return;
+        }
+
+        if (isMounted.current) {
+          setPracticeSet(null);
+          setResult(null);
           setError(loadError instanceof Error ? loadError.message : 'Unable to load practice set');
         }
       } finally {
-        if (isMounted) {
+        if (isMounted.current) {
           setIsLoading(false);
         }
       }
@@ -86,9 +127,9 @@ export default function PracticeSessionPage() {
     loadPracticeSet();
 
     return () => {
-      isMounted = false;
+      controller.abort();
     };
-  }, [params.id]);
+  }, [params.id, loadAttempt]);
 
   const elapsedTime = useMemo(() => {
     if (!practiceSet) {
@@ -98,11 +139,12 @@ export default function PracticeSessionPage() {
     return Math.max((practiceSet.timeLimit || 1800) - timeLeft, 0);
   }, [practiceSet, timeLeft]);
 
-  async function submitPractice() {
-    if (!practiceSet || isSubmitting || result) {
+  const submitPractice = useCallback(async () => {
+    if (!practiceSet || submitting.current || result) {
       return;
     }
 
+    submitting.current = true;
     setIsSubmitting(true);
     setError(null);
 
@@ -112,19 +154,26 @@ export default function PracticeSessionPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ answers, timeTaken: elapsedTime }),
       });
-      const data = await response.json();
+      const data = await responseData(response);
 
       if (!response.ok) {
         throw new Error(data.error || 'Unable to submit practice');
       }
 
-      setResult(data.result);
+      if (isMounted.current) {
+        setResult(data.result);
+      }
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'Unable to submit practice');
+      if (isMounted.current) {
+        setError(submitError instanceof Error ? submitError.message : 'Unable to submit practice');
+      }
     } finally {
-      setIsSubmitting(false);
+      submitting.current = false;
+      if (isMounted.current) {
+        setIsSubmitting(false);
+      }
     }
-  }
+  }, [answers, elapsedTime, practiceSet, result]);
 
   useEffect(() => {
     if (!practiceSet || result) {
@@ -132,7 +181,10 @@ export default function PracticeSessionPage() {
     }
 
     if (timeLeft <= 0) {
-      submitPractice();
+      if (!autoSubmitStarted.current) {
+        autoSubmitStarted.current = true;
+        submitPractice();
+      }
       return;
     }
 
@@ -141,7 +193,7 @@ export default function PracticeSessionPage() {
     }, 1000);
 
     return () => window.clearInterval(timer);
-  }, [practiceSet, result, timeLeft]);
+  }, [practiceSet, result, submitPractice, timeLeft]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -163,7 +215,7 @@ export default function PracticeSessionPage() {
       <EmptyState
         title="Practice unavailable"
         description={error}
-        action={{ label: 'Back to Practice', onClick: () => router.push('/student/practice') }}
+        action={{ label: 'Try Again', onClick: () => setLoadAttempt((attempt) => attempt + 1) }}
       />
     );
   }
@@ -240,7 +292,9 @@ export default function PracticeSessionPage() {
       </div>
 
       <GlassCard className="p-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-8">{question.question}</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-8">
+          <MathRenderer>{question.question}</MathRenderer>
+        </h2>
         <div className="space-y-4">
           {(Object.keys(question.options) as OptionKey[]).map((optionKey) => {
             const isSelected = selectedAnswer === optionKey;
@@ -251,7 +305,7 @@ export default function PracticeSessionPage() {
               <button
                 key={optionKey}
                 type="button"
-                disabled={Boolean(result)}
+                disabled={Boolean(result) || timeLeft === 0 || isSubmitting}
                 onClick={() => setAnswers((prev) => ({ ...prev, [question.id]: optionKey }))}
                 className={`w-full p-5 text-left rounded-2xl border-2 transition-all font-medium text-lg ${
                   isCorrect
@@ -266,7 +320,7 @@ export default function PracticeSessionPage() {
                 <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-white text-gray-700 mr-4 text-sm font-semibold">
                   {optionKey}
                 </span>
-                {question.options[optionKey]}
+                <MathRenderer>{question.options[optionKey]}</MathRenderer>
                 {isCorrect && result && <CheckCircle2 className="float-right w-6 h-6" />}
                 {isWrongSelection && <XCircle className="float-right w-6 h-6" />}
               </button>
@@ -277,7 +331,9 @@ export default function PracticeSessionPage() {
         {gradedAnswer && (
           <div className="mt-6 rounded-xl bg-white/70 p-4">
             <p className="font-semibold text-gray-900">Explanation</p>
-            <p className="mt-1 text-gray-700">{gradedAnswer.explanation || 'No explanation provided.'}</p>
+            <MathRenderer display className="mt-1 text-gray-700">
+              {gradedAnswer.explanation || 'No explanation provided.'}
+            </MathRenderer>
           </div>
         )}
       </GlassCard>
@@ -296,6 +352,10 @@ export default function PracticeSessionPage() {
         {result ? (
           <PrimaryButton onClick={() => router.push('/student/results')} className="px-8">
             View Results
+          </PrimaryButton>
+        ) : timeLeft === 0 ? (
+          <PrimaryButton onClick={submitPractice} isLoading={isSubmitting} className="px-8">
+            Retry submission
           </PrimaryButton>
         ) : currentQuestion === practiceSet.questions.length - 1 ? (
           <PrimaryButton onClick={submitPractice} isLoading={isSubmitting} className="px-8">

@@ -4,10 +4,19 @@ import Link from 'next/link';
 import connectDB from '@/lib/db/mongodb';
 import PracticeSetModel from '@/models/PracticeSet';
 import SubjectModel from '@/models/Subject';
-import GradeModel from '@/models/Grade';
 import GlassCard from '@/components/ui/GlassCard';
 import PrimaryButton from '@/components/ui/PrimaryButton';
 import { BookOpen, Zap, Target, Clock } from 'lucide-react';
+
+type ListItem = { _id: { toString(): string }; name: string };
+type PracticeSetItem = ListItem & {
+  description?: string;
+  difficulty?: 'easy' | 'medium' | 'hard';
+  subject?: { name?: string };
+  grade?: { name?: string };
+  questions?: unknown[];
+  timeLimit?: number;
+};
 
 export default async function PracticePage() {
   const session = await auth();
@@ -18,13 +27,20 @@ export default async function PracticePage() {
 
   await connectDB();
 
-  const practiceSets = await PracticeSetModel.find({ isActive: true })
-    .populate('subject')
-    .populate('grade')
-    .limit(20);
-
-  const subjects = await SubjectModel.find({ isActive: true });
-  const grades = await GradeModel.find({ isActive: true });
+  const now = new Date();
+  const [practiceSets, subjects] = await Promise.all([
+    PracticeSetModel.find({
+      isPublished: true,
+      'availability.startDate': { $lte: now },
+      'availability.endDate': { $gte: now },
+    })
+      .populate('subject', 'name')
+      .populate('grade', 'name')
+      .select('name description difficulty subject grade questions timeLimit')
+      .limit(20)
+      .lean(),
+    SubjectModel.find({ isActive: true }).select('name').sort({ order: 1 }).lean(),
+  ]);
 
   return (
     <div className="space-y-8">
@@ -103,7 +119,7 @@ export default async function PracticePage() {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {subjects.map((subject: any) => (
+          {(subjects as ListItem[]).map((subject) => (
             <Link key={subject._id.toString()} href={`/student/practice/subject/${subject._id}`}>
               <GlassCard className="p-4 text-center hover:scale-105 transition-transform">
                 <div className="w-12 h-12 bg-brand-lighter rounded-full mx-auto mb-3 flex items-center justify-center">
@@ -124,11 +140,11 @@ export default async function PracticePage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {practiceSets.map((set: any) => (
+          {(practiceSets as PracticeSetItem[]).map((set) => (
             <GlassCard key={set._id.toString()} className="p-6 hover:scale-105 transition-transform">
               <div className="flex justify-between items-start mb-4">
                 <div>
-                  <h3 className="font-bold text-gray-900 mb-1">{set.title}</h3>
+                  <h3 className="font-bold text-gray-900 mb-1">{set.name}</h3>
                   <p className="text-sm text-gray-600">{set.description}</p>
                 </div>
                 <span className={`text-xs px-2 py-1 rounded-full ${

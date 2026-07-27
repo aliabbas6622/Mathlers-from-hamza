@@ -1,8 +1,38 @@
 import NextAuth from 'next-auth';
+import type { Session, User } from 'next-auth';
+import type { JWT } from '@auth/core/jwt';
 import Credentials from 'next-auth/providers/credentials';
 import UserModel, { UserRole } from '@/models/User';
 import connectDB from '@/lib/db/mongodb';
 import bcrypt from 'bcryptjs';
+
+async function getBypassUser(bypassRole: 'student' | 'admin') {
+  await connectDB();
+  const role = bypassRole === 'admin' ? UserRole.ADMIN : UserRole.STUDENT;
+  const email = `${bypassRole}@mathlers.local`;
+  const playerId = bypassRole === 'admin' ? 'ADM-BYPASS' : 'MTH-BYPASS';
+
+  return UserModel.findOneAndUpdate(
+    { email },
+    {
+      $setOnInsert: {
+        fullName: bypassRole === 'admin' ? 'Bypass Admin' : 'Bypass Student',
+        fatherName: 'Development Bypass',
+        dateOfBirth: new Date('2010-01-01'),
+        gender: 'other',
+        email,
+        phone: '0000000000',
+        password: 'development-bypass',
+        city: 'Development',
+        grade: '12',
+        role,
+        playerId,
+        isEmailVerified: true,
+      },
+    },
+    { returnDocument: 'after', upsert: true }
+  );
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   pages: {
@@ -19,12 +49,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const bypassRole = credentials?.bypassRole as string | undefined;
 
         if (process.env.NODE_ENV !== 'production' && (bypassRole === 'student' || bypassRole === 'admin')) {
+          const user = await getBypassUser(bypassRole);
+
           return {
-            id: `bypass-${bypassRole}`,
-            email: `${bypassRole}@mathlers.local`,
-            name: bypassRole === 'admin' ? 'Bypass Admin' : 'Bypass Student',
-            role: bypassRole === 'admin' ? UserRole.ADMIN : UserRole.STUDENT,
-            playerId: bypassRole === 'admin' ? 'ADM-BYPASS' : 'MTH-BYPASS',
+            id: user._id.toString(),
+            email: user.email,
+            name: user.fullName,
+            role: user.role,
+            playerId: user.playerId,
           };
         }
 
@@ -56,14 +88,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             role: user.role,
             playerId: user.playerId,
           };
-        } catch (error) {
+        } catch {
           return null;
         }
       },
     }),
   ],
   callbacks: {
-    async jwt({ token, user }: any) {
+    async jwt({ token, user }: { token: JWT; user?: User }) {
       if (user) {
         token.id = user.id;
         token.role = user.role;
@@ -71,8 +103,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return token;
     },
-    async session({ session, token }: any) {
+    async session({ session, token }: { session: Session; token: JWT }) {
       if (token && session.user) {
+        if (
+          process.env.NODE_ENV !== 'production' &&
+          (token.id === 'bypass-student' || token.id === 'bypass-admin')
+        ) {
+          const bypassRole = token.id === 'bypass-admin' ? 'admin' : 'student';
+          const user = await getBypassUser(bypassRole);
+          token.id = user._id.toString();
+          token.role = user.role;
+          token.playerId = user.playerId;
+        }
+
         session.user.id = token.id;
         session.user.role = token.role;
         session.user.playerId = token.playerId;

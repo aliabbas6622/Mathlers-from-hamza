@@ -1,10 +1,14 @@
 import mongoose from 'mongoose';
+import dns from 'node:dns';
 
 const MONGODB_URI = process.env.MONGODB_URI!;
+const MONGODB_DNS_SERVERS = process.env.MONGODB_DNS_SERVERS || '8.8.8.8,1.1.1.1';
 
 if (!MONGODB_URI) {
   throw new Error('Please define the MONGODB_URI environment variable');
 }
+
+dns.setServers(MONGODB_DNS_SERVERS.split(',').map((server) => server.trim()).filter(Boolean));
 
 interface MongooseCache {
   conn: typeof mongoose | null;
@@ -15,7 +19,7 @@ declare global {
   var mongoose: MongooseCache | undefined;
 }
 
-let cached: MongooseCache = global.mongoose || { conn: null, promise: null };
+const cached: MongooseCache = global.mongoose || { conn: null, promise: null };
 
 if (!global.mongoose) {
   global.mongoose = cached;

@@ -12,10 +12,10 @@ const config: Config = {
         background: "#ffffff",
         foreground: "#171717",
         brand: {
-          primary: "#C1121F",
-          dark: "#8B0E16",
-          light: "#E63946",
-          lighter: "#F8D7DA",
+          primary: "rgb(var(--brand-primary-rgb) / <alpha-value>)",
+          dark: "rgb(var(--brand-dark-rgb) / <alpha-value>)",
+          light: "rgb(var(--brand-light-rgb) / <alpha-value>)",
+          lighter: "rgb(var(--brand-lighter-rgb) / <alpha-value>)",
         },
         glass: {
           light: "rgba(255, 255, 255, 0.8)",

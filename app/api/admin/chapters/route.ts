@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     const grade = searchParams.get('grade');
     const subject = searchParams.get('subject');
 
-    const query: any = {};
+    const query: Record<string, string> = {};
     if (grade) query.grade = grade;
     if (subject) query.subject = subject;
 
