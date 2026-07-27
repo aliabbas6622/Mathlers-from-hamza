@@ -36,7 +36,6 @@ const GradeSchema = new Schema<IGrade>(
   }
 );
 
-GradeSchema.index({ code: 1 });
 GradeSchema.index({ order: 1 });
 GradeSchema.index({ isActive: 1 });
 

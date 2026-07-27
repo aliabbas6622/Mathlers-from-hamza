@@ -11,3 +11,5 @@
 - Use modular architecture.
 - Build production-ready pages only.
 - If adding a new page, first determine its template, then reuse existing components instead of creating new ones.
+- **CRITICAL GIT RULE**: ALWAYS perform a `git pull origin <branch>` before executing `git push` to ensure all remote changes are merged and potential conflicts are resolved.
+

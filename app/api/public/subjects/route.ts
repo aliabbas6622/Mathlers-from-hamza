@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/db/mongodb';
 import SubjectModel from '@/models/Subject';
+import '@/models/Grade';
 
 export async function GET() {
   try {
     await connectDB();
 
-    const subjects = await SubjectModel.find({ isActive: true }).select('name code');
+    const subjects = await SubjectModel.find({ isActive: true }).select('name code grades').populate('grades', 'name code');
 
     return NextResponse.json({
       success: true,

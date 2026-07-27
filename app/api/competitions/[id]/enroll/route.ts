@@ -38,22 +38,30 @@ export async function POST(
     return NextResponse.json({ error: 'Already enrolled' }, { status: 400 });
   }
 
-  if (!student || !competition.eligibility.grades.includes(student.grade)) {
-    return NextResponse.json({ error: 'You are not eligible for this competition' }, { status: 400 });
+  // Grade eligibility check
+  const allowedGrades = competition.eligibility?.grades || [];
+  if (
+    allowedGrades.length > 0 && 
+    !allowedGrades.includes('All') && 
+    student?.grade && 
+    !allowedGrades.includes(student.grade)
+  ) {
+    return NextResponse.json({ error: `Not eligible: This competition is restricted to ${allowedGrades.join(', ')}` }, { status: 400 });
   }
 
-  if (competition.status !== CompetitionStatus.REGISTRATION_OPEN) {
-    return NextResponse.json({ error: 'Registration is not open' }, { status: 400 });
+  if (competition.status !== CompetitionStatus.REGISTRATION_OPEN && competition.status !== CompetitionStatus.DRAFT) {
+    return NextResponse.json({ error: 'Registration is closed or not open yet' }, { status: 400 });
   }
 
   const registrations = await EnrollmentModel.countDocuments({ competition: id });
-  if (registrations >= competition.registration.maxParticipants) {
-    return NextResponse.json({ error: 'Competition is full' }, { status: 400 });
+  const maxParts = competition.eligibility?.maxParticipants || 500;
+  if (registrations >= maxParts) {
+    return NextResponse.json({ error: 'Competition participant limit reached' }, { status: 400 });
   }
 
-  const participantId = `CMP-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+  const participantId = `MTH-P-${Math.floor(100000 + Math.random() * 900000)}`;
 
-  await EnrollmentModel.create({
+  const enrollment = await EnrollmentModel.create({
     competition: id,
     student: session.user.id,
     status: EnrollmentStatus.APPROVED,
@@ -62,8 +70,13 @@ export async function POST(
     qrCode: participantId,
   });
 
-  await CompetitionModel.findByIdAndUpdate(id, { $inc: { 'analytics.registrations': 1 } });
+  await CompetitionModel.findByIdAndUpdate(id, { $inc: { 'analytics.totalRegistrations': 1 } });
   await UserModel.findByIdAndUpdate(session.user.id, { $inc: { competitionsJoined: 1 } });
 
-  return NextResponse.json({ ok: true, participantId });
+  return NextResponse.json({ 
+    ok: true, 
+    participantId,
+    enrollmentId: enrollment._id.toString(),
+    accessCode: competition.registration?.accessCode || undefined,
+  });
 }

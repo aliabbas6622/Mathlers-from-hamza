@@ -17,6 +17,8 @@ export async function validateQuestionLinks({ subject, grade, chapter, topic, su
     SubjectModel.findById(subject), GradeModel.findById(grade), ChapterModel.findById(chapter), TopicModel.findById(topic),
   ]);
   if (!subjectDoc || !gradeDoc || !chapterDoc || !topicDoc) return 'Invalid subject, grade, chapter, or topic reference';
+  const subjectGrades = subjectDoc.grades || [];
+  if (subjectGrades.length && !subjectGrades.some((item) => item.toString() === grade)) return 'The subject is not available for the selected grade';
   if (chapterDoc.grade.toString() !== grade || chapterDoc.subject.toString() !== subject) return 'The chapter does not belong to the selected subject and grade';
 
   const linkedSubjects = [topicDoc.subject, ...(topicDoc.subjects || [])].filter(Boolean).map((item) => item.toString());
