@@ -1,11 +1,13 @@
 import mongoose, { Schema, Model } from 'mongoose';
-import baseSchema, { BaseDocument } from './Base';
+import { BaseDocument } from './Base';
 
 export enum EnrollmentStatus {
   PENDING = 'pending',
   APPROVED = 'approved',
   REJECTED = 'rejected',
   WAITING_LIST = 'waiting_list',
+  IN_PROGRESS = 'in_progress',
+  COMPLETED = 'completed',
 }
 
 export interface IEnrollment extends BaseDocument {
@@ -18,6 +20,17 @@ export interface IEnrollment extends BaseDocument {
   qrCode: string;
   currentRound: number;
   isQualified: boolean;
+  startTime?: Date;
+  endTime?: Date;
+  score?: number;
+  totalMarks?: number;
+  percentage?: number;
+  answers: {
+    questionId: string;
+    userAnswer?: string | number | string[] | number[] | null;
+    isCorrect: boolean;
+    marksObtained: number;
+  }[];
   attendance: {
     round: number;
     attended: boolean;
@@ -68,6 +81,42 @@ const EnrollmentSchema = new Schema<IEnrollment>(
       type: Boolean,
       default: false,
     },
+    startTime: {
+      type: Date,
+    },
+    endTime: {
+      type: Date,
+    },
+    score: {
+      type: Number,
+      default: 0,
+    },
+    totalMarks: {
+      type: Number,
+      default: 0,
+    },
+    percentage: {
+      type: Number,
+      default: 0,
+    },
+    answers: [{
+      questionId: {
+        type: String,
+        required: true,
+      },
+      userAnswer: {
+        type: Schema.Types.Mixed,
+      },
+      isCorrect: {
+        type: Boolean,
+        required: true,
+      },
+      marksObtained: {
+        type: Number,
+        required: true,
+        default: 0,
+      },
+    }],
     attendance: [{
       round: {
         type: Number,

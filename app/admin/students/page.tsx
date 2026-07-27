@@ -4,7 +4,17 @@ import connectDB from '@/lib/db/mongodb';
 import UserModel from '@/models/User';
 import GlassCard from '@/components/ui/GlassCard';
 import PrimaryButton from '@/components/ui/PrimaryButton';
-import { Search, Filter, Plus, Edit, Trash2, Users, Mail } from 'lucide-react';
+import { Search, Filter, Plus, Edit, Trash2, Users } from 'lucide-react';
+
+type StudentRow = {
+  _id: { toString(): string };
+  fullName?: string;
+  email?: string;
+  playerId?: string;
+  role?: string;
+  isActive?: boolean;
+  isSuspended?: boolean;
+};
 
 export default async function StudentsPage() {
   const session = await auth();
@@ -15,7 +25,11 @@ export default async function StudentsPage() {
 
   await connectDB();
 
-  const students = await UserModel.find({ isActive: true }).limit(50);
+  const students = await UserModel.find({ isActive: true })
+    .select('fullName email playerId role isActive isSuspended')
+    .sort({ createdAt: -1 })
+    .limit(50)
+    .lean<StudentRow[]>();
 
   return (
     <div className="space-y-6">
@@ -74,7 +88,7 @@ export default async function StudentsPage() {
               </tr>
             </thead>
             <tbody>
-              {students.map((student: any) => (
+              {students.map((student) => (
                 <tr key={student._id.toString()} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-4 px-4">
                     <div className="flex items-center gap-3">

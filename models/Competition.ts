@@ -1,5 +1,5 @@
 import mongoose, { Schema, Model } from 'mongoose';
-import baseSchema, { BaseDocument } from './Base';
+import { BaseDocument } from './Base';
 
 // ─── Enums ───────────────────────────────────────────────────────────────────
 
@@ -372,7 +372,7 @@ CompetitionSchema.index({ 'registration.accessCode': 1 });
 
 // ─── Access Code Generation ─────────────────────────────────────────────────
 
-CompetitionSchema.pre('save', function (next) {
+CompetitionSchema.pre('save', function () {
   if (
     this.category === CompetitionCategory.GRADE &&
     this.registration.type === RegistrationType.ACCESS_CODE &&
@@ -382,7 +382,6 @@ CompetitionSchema.pre('save', function (next) {
     const randomPart = Math.random().toString(36).slice(2, 6).toUpperCase();
     this.registration.accessCode = `MTH-${gradeTag}-${randomPart}`;
   }
-  next();
 });
 
 const CompetitionModel: Model<ICompetition> = mongoose.models.Competition || mongoose.model<ICompetition>('Competition', CompetitionSchema);

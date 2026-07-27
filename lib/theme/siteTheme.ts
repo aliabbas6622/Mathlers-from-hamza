@@ -2,7 +2,34 @@ import connectDB from '@/lib/db/mongodb';
 import SiteThemeModel from '@/models/SiteTheme';
 import { DEFAULT_THEME, normalizeSiteTheme, type SiteTheme, type ThemePalette, type ThemeScope } from './palette';
 
+const THEME_CACHE_MS = 60_000;
+
+let cachedTheme: { value: SiteTheme; expiresAt: number } | null = null;
+let pendingThemeRead: Promise<SiteTheme> | null = null;
+
 export async function getSiteTheme(): Promise<SiteTheme> {
+  const now = Date.now();
+  if (cachedTheme && cachedTheme.expiresAt > now) {
+    return cachedTheme.value;
+  }
+
+  if (pendingThemeRead) {
+    return pendingThemeRead;
+  }
+
+  pendingThemeRead = readSiteTheme()
+    .then((theme) => {
+      cachedTheme = { value: theme, expiresAt: Date.now() + THEME_CACHE_MS };
+      return theme;
+    })
+    .finally(() => {
+      pendingThemeRead = null;
+    });
+
+  return pendingThemeRead;
+}
+
+async function readSiteTheme(): Promise<SiteTheme> {
   try {
     await connectDB();
     const theme = await SiteThemeModel.findOne({ key: 'default' }).lean();
@@ -20,8 +47,10 @@ export async function saveThemePalette(scope: ThemeScope, palette: ThemePalette 
   const theme = await SiteThemeModel.findOneAndUpdate(
     { key: 'default' },
     { ...update, $setOnInsert: setOnInsert },
-    { new: true, upsert: true, setDefaultsOnInsert: true }
+    { returnDocument: 'after', upsert: true, setDefaultsOnInsert: true }
   ).lean();
 
-  return normalizeSiteTheme(theme);
+  const normalizedTheme = normalizeSiteTheme(theme);
+  cachedTheme = { value: normalizedTheme, expiresAt: Date.now() + THEME_CACHE_MS };
+  return normalizedTheme;
 }

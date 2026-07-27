@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth/auth';
 import connectDB from '@/lib/db/mongodb';
 import CompetitionModel from '@/models/Competition';
-import EnrollmentModel from '@/models/Enrollment';
-import QuestionModel from '@/models/Question';
+import EnrollmentModel, { EnrollmentStatus } from '@/models/Enrollment';
 import { isValidObjectId } from '@/lib/utils/isValidObjectId';
 
 export async function GET(
@@ -44,7 +43,7 @@ export async function GET(
 
     if (!enrollment.startTime) {
       enrollment.startTime = new Date();
-      enrollment.status = 'in_progress';
+      enrollment.status = EnrollmentStatus.IN_PROGRESS;
       await enrollment.save();
     }
 
@@ -62,7 +61,7 @@ export async function GET(
         status: enrollment.status,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error starting competition test:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

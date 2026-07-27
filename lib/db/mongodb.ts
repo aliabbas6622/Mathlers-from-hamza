@@ -2,13 +2,15 @@ import mongoose from 'mongoose';
 import dns from 'node:dns';
 
 const MONGODB_URI = process.env.MONGODB_URI!;
-const MONGODB_DNS_SERVERS = process.env.MONGODB_DNS_SERVERS || '8.8.8.8,1.1.1.1';
+const MONGODB_DNS_SERVERS = process.env.MONGODB_DNS_SERVERS;
 
 if (!MONGODB_URI) {
   throw new Error('Please define the MONGODB_URI environment variable');
 }
 
-dns.setServers(MONGODB_DNS_SERVERS.split(',').map((server) => server.trim()).filter(Boolean));
+if (MONGODB_DNS_SERVERS) {
+  dns.setServers(MONGODB_DNS_SERVERS.split(',').map((server) => server.trim()).filter(Boolean));
+}
 
 interface MongooseCache {
   conn: typeof mongoose | null;
