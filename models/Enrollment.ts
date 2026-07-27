@@ -90,7 +90,6 @@ const EnrollmentSchema = new Schema<IEnrollment>(
 
 EnrollmentSchema.index({ competition: 1, student: 1 });
 EnrollmentSchema.index({ status: 1 });
-EnrollmentSchema.index({ participantId: 1 });
 
 const EnrollmentModel: Model<IEnrollment> = mongoose.models.Enrollment || mongoose.model<IEnrollment>('Enrollment', EnrollmentSchema);
 

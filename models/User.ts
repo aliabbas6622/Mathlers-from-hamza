@@ -187,8 +187,6 @@ const UserSchema = new Schema<IUser>(
   }
 );
 
-UserSchema.index({ email: 1 });
-UserSchema.index({ playerId: 1 });
 UserSchema.index({ school: 1 });
 UserSchema.index({ grade: 1 });
 UserSchema.index({ role: 1 });

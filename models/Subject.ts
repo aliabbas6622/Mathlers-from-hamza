@@ -54,7 +54,6 @@ const SubjectSchema = new Schema<ISubject>(
   }
 );
 
-SubjectSchema.index({ code: 1 });
 SubjectSchema.index({ grades: 1 });
 SubjectSchema.index({ order: 1 });
 SubjectSchema.index({ isActive: 1 });
