@@ -4,6 +4,7 @@ import baseSchema, { BaseDocument } from './Base';
 export interface ISubject extends BaseDocument {
   name: string;
   code: string;
+  grades: mongoose.Types.ObjectId[];
   description?: string;
   icon?: string;
   color?: string;
@@ -25,6 +26,10 @@ const SubjectSchema = new Schema<ISubject>(
       uppercase: true,
       trim: true,
     },
+    grades: [{
+      type: Schema.Types.ObjectId,
+      ref: 'Grade',
+    }],
     description: {
       type: String,
       trim: true,
@@ -50,9 +55,12 @@ const SubjectSchema = new Schema<ISubject>(
 );
 
 SubjectSchema.index({ code: 1 });
+SubjectSchema.index({ grades: 1 });
 SubjectSchema.index({ order: 1 });
 SubjectSchema.index({ isActive: 1 });
 
+const cachedSubject = mongoose.models.Subject as Model<ISubject> | undefined;
+if (cachedSubject && !cachedSubject.schema.path('grades')) mongoose.deleteModel('Subject');
 const SubjectModel: Model<ISubject> = mongoose.models.Subject || mongoose.model<ISubject>('Subject', SubjectSchema);
 
 export default SubjectModel;

@@ -10,12 +10,23 @@ export enum PracticeSetType {
 
 export interface IPracticeSet extends BaseDocument {
   name: string;
+  description?: string;
+  difficulty: 'easy' | 'medium' | 'hard';
   type: PracticeSetType;
   subject: mongoose.Types.ObjectId;
   grade: mongoose.Types.ObjectId;
   chapter?: mongoose.Types.ObjectId;
   topic?: mongoose.Types.ObjectId;
   questions: mongoose.Types.ObjectId[];
+  sections: {
+    name: string;
+    instructions?: string;
+    subject: mongoose.Types.ObjectId;
+    grade: mongoose.Types.ObjectId;
+    chapter?: mongoose.Types.ObjectId;
+    topic?: mongoose.Types.ObjectId;
+    questions: mongoose.Types.ObjectId[];
+  }[];
   timeLimit: number;
   attemptsAllowed: number;
   availability: {
@@ -38,6 +49,16 @@ const PracticeSetSchema = new Schema<IPracticeSet>(
       type: String,
       required: [true, 'Practice set name is required'],
       trim: true,
+    },
+    description: {
+      type: String,
+      trim: true,
+      maxlength: 1000,
+    },
+    difficulty: {
+      type: String,
+      enum: ['easy', 'medium', 'hard'],
+      default: 'medium',
     },
     type: {
       type: String,
@@ -65,6 +86,15 @@ const PracticeSetSchema = new Schema<IPracticeSet>(
     questions: [{
       type: Schema.Types.ObjectId,
       ref: 'Question',
+    }],
+    sections: [{
+      name: { type: String, required: true, trim: true },
+      instructions: { type: String, trim: true, maxlength: 1000 },
+      subject: { type: Schema.Types.ObjectId, ref: 'Subject', required: true },
+      grade: { type: Schema.Types.ObjectId, ref: 'Grade', required: true },
+      chapter: { type: Schema.Types.ObjectId, ref: 'Chapter' },
+      topic: { type: Schema.Types.ObjectId, ref: 'Topic' },
+      questions: [{ type: Schema.Types.ObjectId, ref: 'Question' }],
     }],
     timeLimit: {
       type: Number,

@@ -59,6 +59,7 @@ interface Subject {
   _id: string;
   name: string;
   code: string;
+  grades?: Array<{ _id: string; name: string }>;
 }
 
 interface Grade {
@@ -203,6 +204,7 @@ export default function QuestionsPage() {
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
+  const [selectedGrade, setSelectedGrade] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState('');
   const [bulkUploading, setBulkUploading] = useState(false);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
@@ -220,6 +222,7 @@ export default function QuestionsPage() {
         limit: '20',
         ...(searchTerm && { search: searchTerm }),
         ...(selectedSubject && { subject: selectedSubject }),
+        ...(selectedGrade && { grade: selectedGrade }),
         ...(selectedDifficulty && { difficulty: selectedDifficulty })
       });
 
@@ -235,7 +238,7 @@ export default function QuestionsPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, selectedDifficulty, selectedSubject]);
+  }, [searchTerm, selectedDifficulty, selectedGrade, selectedSubject]);
 
   const fetchSubjects = useCallback(async () => {
     try {
@@ -502,6 +505,18 @@ export default function QuestionsPage() {
               </option>
             ))}
           </select>
+          <select
+            value={selectedGrade}
+            onChange={(e) => setSelectedGrade(e.target.value)}
+            className="px-4 py-3 rounded-xl border border-gray-200 focus:border-brand-primary outline-none"
+          >
+            <option value="">All Student Grades</option>
+            {grades.map((grade) => (
+              <option key={grade._id} value={grade._id}>
+                {grade.name}
+              </option>
+            ))}
+          </select>
           <select 
             value={selectedDifficulty}
             onChange={(e) => setSelectedDifficulty(e.target.value)}
@@ -653,7 +668,7 @@ export default function QuestionsPage() {
           {uploadPreview && (
             <div className="overflow-hidden rounded-lg border border-gray-200">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-3"><div><p className="font-semibold text-gray-950">{uploadPreview.name}</p><p className="text-sm text-gray-600">{uploadPreview.questions.length} questions ready for validation</p></div><button onClick={() => setUploadPreview(null)} className="inline-flex items-center gap-1 text-sm font-semibold text-gray-600 hover:text-gray-950"><X className="h-4 w-4" /> Clear</button></div>
-              <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead className="bg-gray-50 text-xs font-bold uppercase tracking-wide text-gray-500"><tr><th className="px-4 py-3">#</th><th className="px-4 py-3">Question</th><th className="px-4 py-3">Curriculum</th><th className="px-4 py-3">Answer</th></tr></thead><tbody>{uploadPreview.questions.slice(0, 5).map((item, index) => <tr key={`${item.question}-${index}`} className="border-t border-gray-100"><td className="px-4 py-3 text-gray-500">{index + 1}</td><td className="max-w-sm truncate px-4 py-3 font-medium text-gray-900">{item.question || 'Missing question text'}</td><td className="px-4 py-3 text-gray-600">{item.subject || 'No subject'} / {item.topic || 'No topic'}</td><td className="px-4 py-3 text-gray-600">{item.correctAnswer || 'Not set'}</td></tr>)}</tbody></table></div>
+              <div className="overflow-x-auto"><table className="w-full min-w-[800px] text-left text-sm"><thead className="bg-gray-50 text-xs font-bold uppercase tracking-wide text-gray-500"><tr><th className="px-4 py-3">#</th><th className="px-4 py-3">Question</th><th className="px-4 py-3">Curriculum</th><th className="px-4 py-3">Answer</th></tr></thead><tbody>{uploadPreview.questions.slice(0, 5).map((item, index) => <tr key={`${item.question}-${index}`} className="border-t border-gray-100"><td className="px-4 py-3 text-gray-500">{index + 1}</td><td className="max-w-sm truncate px-4 py-3 font-medium text-gray-900">{item.question || 'Missing question text'}</td><td className="px-4 py-3 text-gray-600">{item.subject || 'No subject'} / {item.grade || 'No grade'} / {item.topic || 'No topic'}</td><td className="px-4 py-3 text-gray-600">{item.correctAnswer || 'Not set'}</td></tr>)}</tbody></table></div>
               {uploadPreview.questions.length > 5 && <p className="border-t border-gray-100 px-4 py-3 text-sm text-gray-600">Showing 5 of {uploadPreview.questions.length} rows. The server will validate every row.</p>}
             </div>
           )}

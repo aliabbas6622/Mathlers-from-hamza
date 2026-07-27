@@ -31,6 +31,7 @@ interface Subject {
   _id: string;
   name: string;
   code: string;
+  grades?: Array<{ _id: string; name: string }>;
 }
 
 interface Grade {
@@ -172,6 +173,16 @@ export default function QuestionForm({
   }, [fetchTopics, watchedChapter, watchedSubject]);
 
   const selectedTopic = topics.find((topic) => topic._id === watchedTopic);
+  const visibleSubjects = subjects.filter((subject) => !watchedGrade || !subject.grades?.length || subject.grades.some((grade) => grade._id === watchedGrade));
+
+  useEffect(() => {
+    if (watchedSubject && !visibleSubjects.some((subject) => subject._id === watchedSubject)) {
+      setValue('subject', '');
+      setValue('chapter', '');
+      setValue('topic', '');
+      setValue('subtopic', '');
+    }
+  }, [setValue, visibleSubjects, watchedSubject]);
 
   const handleFormSubmit = async (data: QuestionFormData) => {
     setIsLoading(true);
@@ -212,7 +223,7 @@ export default function QuestionForm({
               className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none"
             >
               <option value="">Select Subject</option>
-              {subjects.map((subject) => (
+              {visibleSubjects.map((subject) => (
                 <option key={subject._id} value={subject._id}>
                   {subject.name}
                 </option>
@@ -225,7 +236,7 @@ export default function QuestionForm({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Grade *
+              Student Grade *
             </label>
             <select
               {...register('grade', {
@@ -238,7 +249,7 @@ export default function QuestionForm({
               })}
               className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none"
             >
-              <option value="">Select Grade</option>
+              <option value="">Select Student Grade</option>
               {grades.map((grade) => (
                 <option key={grade._id} value={grade._id}>
                   {grade.name}

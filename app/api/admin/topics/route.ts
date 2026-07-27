@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
 
     const topics = await TopicModel.find(query)
       .populate('chapter', 'name')
+      .populate('grade', 'name')
       .populate('subject', 'name')
       .populate('subjects', 'name')
       .sort({ order: 1, name: 1 });
@@ -60,13 +61,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Name, code, grade, chapter, and at least one subject are required' }, { status: 400 });
     }
 
-    const [grade, chapter, subjectCount] = await Promise.all([
+    const [grade, chapter, subjectDocs] = await Promise.all([
       GradeModel.exists({ _id: body.grade }),
       ChapterModel.exists({ _id: body.chapter }),
-      SubjectModel.countDocuments({ _id: { $in: subjects } }),
+      SubjectModel.find({ _id: { $in: subjects } }).select('grades'),
     ]);
-    if (!grade || !chapter || subjectCount !== subjects.length) {
+    if (!grade || !chapter || subjectDocs.length !== subjects.length) {
       return NextResponse.json({ error: 'One or more curriculum links are invalid' }, { status: 400 });
+    }
+    if (subjectDocs.some((subject) => subject.grades?.length && !subject.grades.some((item) => item.toString() === body.grade))) {
+      return NextResponse.json({ error: 'One or more subjects are not available for this grade' }, { status: 400 });
     }
 
     const topic = await TopicModel.create({

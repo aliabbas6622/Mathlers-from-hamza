@@ -23,10 +23,14 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       subtopics?: Array<{ name?: string; code?: string }>; order?: number; isActive?: boolean;
     };
     const subjects = body.subjects ? [...new Set(body.subjects.filter(Boolean))] : undefined;
-    if (subjects?.length && await SubjectModel.countDocuments({ _id: { $in: subjects } }) !== subjects.length) {
+    const subjectDocs = subjects?.length ? await SubjectModel.find({ _id: { $in: subjects } }).select('grades') : [];
+    if (subjects?.length && subjectDocs.length !== subjects.length) {
       return NextResponse.json({ error: 'One or more subjects are invalid' }, { status: 400 });
     }
     if (body.grade && !await GradeModel.exists({ _id: body.grade })) return NextResponse.json({ error: 'Invalid grade' }, { status: 400 });
+    if (body.grade && subjectDocs.some((subject) => subject.grades?.length && !subject.grades.some((item) => item.toString() === body.grade))) {
+      return NextResponse.json({ error: 'One or more subjects are not available for this grade' }, { status: 400 });
+    }
     if (body.chapter && !await ChapterModel.exists({ _id: body.chapter })) return NextResponse.json({ error: 'Invalid chapter' }, { status: 400 });
     const subtopics = body.subtopics?.filter((item) => item.name?.trim()).map((item) => ({
       name: item.name!.trim(), code: item.code?.trim(),
@@ -41,7 +45,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       ...(subtopics !== undefined && { subtopics }),
       ...(body.order !== undefined && { order: Number(body.order) || 0 }),
       ...(body.isActive !== undefined && { isActive: body.isActive }),
-    }, { new: true, runValidators: true });
+    }, { returnDocument: 'after', runValidators: true }).populate('grade', 'name').populate('subjects', 'name').populate('subject', 'name');
     if (!topic) return NextResponse.json({ error: 'Topic not found' }, { status: 404 });
     return NextResponse.json({ success: true, data: topic });
   } catch (error: unknown) {

@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 import { BookOpen, Check, Pencil, Plus, Tags, Trash2, X } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 
-type Subject = { _id: string; name: string; code: string; description?: string; color?: string; order: number; isActive: boolean };
+type Subject = { _id: string; name: string; code: string; grades?: Grade[]; description?: string; color?: string; order: number; isActive: boolean };
 type Grade = { _id: string; name: string };
 type Chapter = { _id: string; name: string; grade: { _id: string }; subject: { _id: string } };
 type Subtopic = { _id?: string; name: string; code?: string };
@@ -15,7 +15,7 @@ type Topic = {
   subjects?: Array<{ _id: string; name: string }>; subtopics: Subtopic[]; order: number; isActive: boolean;
 };
 
-const emptySubject = { name: '', code: '', description: '', color: '#C1121F', order: 0, isActive: true };
+const emptySubject = { name: '', code: '', grades: [] as string[], description: '', color: '#C1121F', order: 0, isActive: true };
 const emptyTopic = { name: '', code: '', description: '', grade: '', chapter: '', subjects: [] as string[], subtopics: [] as Subtopic[], order: 0, isActive: true };
 const api = async (url: string, options?: RequestInit) => {
   const response = await fetch(url, options);
@@ -75,7 +75,7 @@ export default function ContentPage() {
 
   const openSubject = (subject?: Subject) => {
     setEditingSubject(subject || null);
-    setSubjectForm(subject ? { name: subject.name, code: subject.code, description: subject.description || '', color: subject.color || '#C1121F', order: subject.order, isActive: subject.isActive } : emptySubject);
+    setSubjectForm(subject ? { name: subject.name, code: subject.code, grades: subject.grades?.map((grade) => grade._id) || [], description: subject.description || '', color: subject.color || '#C1121F', order: subject.order, isActive: subject.isActive } : emptySubject);
     setSubjectModal(true);
   };
   const openTopic = (topic?: Topic) => {
@@ -120,7 +120,15 @@ export default function ContentPage() {
     void loadChapters(form.grade, subjects[0] || '');
     return { ...form, subjects, chapter: '' };
   });
-  const setTopicGrade = (grade: string) => { setTopicForm((form) => ({ ...form, grade, chapter: '' })); void loadChapters(grade, topicForm.subjects[0] || ''); };
+  const toggleSubjectGrade = (id: string) => setSubjectForm((form) => ({ ...form, grades: form.grades.includes(id) ? form.grades.filter((value) => value !== id) : [...form.grades, id] }));
+  const setTopicGrade = (grade: string) => {
+    setTopicForm((form) => {
+      const available = subjects.filter((subject) => !grade || !subject.grades?.length || subject.grades.some((item) => item._id === grade)).map((subject) => subject._id);
+      const linkedSubjects = form.subjects.filter((subject) => available.includes(subject));
+      void loadChapters(grade, linkedSubjects[0] || '');
+      return { ...form, grade, chapter: '', subjects: linkedSubjects };
+    });
+  };
   const setSubtopic = (index: number, field: keyof Subtopic, value: string) => setTopicForm((form) => ({ ...form, subtopics: form.subtopics.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item) }));
 
   return (
@@ -145,10 +153,12 @@ export default function ContentPage() {
 
       {section === 'subjects' ? (
         <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-          <div className="grid grid-cols-[minmax(220px,1.2fr)_110px_minmax(220px,2fr)_100px_110px] gap-4 border-b border-gray-200 bg-gray-50 px-5 py-3 text-xs font-bold uppercase tracking-wide text-gray-500"><span>Subject</span><span>Code</span><span>Description</span><span>Status</span><span className="text-right">Actions</span></div>
-          {subjects.map((subject) => <div key={subject._id} className="grid grid-cols-[minmax(220px,1.2fr)_110px_minmax(220px,2fr)_100px_110px] items-center gap-4 border-b border-gray-100 px-5 py-4 last:border-0">
+          <div className="grid grid-cols-[minmax(180px,1.2fr)_100px_minmax(160px,1fr)_minmax(180px,1.4fr)_100px_110px] gap-4 border-b border-gray-200 bg-gray-50 px-5 py-3 text-xs font-bold uppercase tracking-wide text-gray-500"><span>Subject</span><span>Code</span><span>Grades</span><span>Description</span><span>Status</span><span className="text-right">Actions</span></div>
+          {subjects.map((subject) => <div key={subject._id} className="grid grid-cols-[minmax(180px,1.2fr)_100px_minmax(160px,1fr)_minmax(180px,1.4fr)_100px_110px] items-center gap-4 border-b border-gray-100 px-5 py-4 last:border-0">
             <div className="flex min-w-0 items-center gap-3"><span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: subject.color || '#C1121F' }} /><span className="truncate font-semibold text-gray-950">{subject.name}</span></div>
-            <span className="font-mono text-sm text-gray-600">{subject.code}</span><span className="truncate text-sm text-gray-600">{subject.description || 'No description'}</span>
+            <span className="font-mono text-sm text-gray-600">{subject.code}</span>
+            <span className="truncate text-sm text-gray-600">{subject.grades?.length ? subject.grades.map((grade) => grade.name).join(', ') : 'All grades'}</span>
+            <span className="truncate text-sm text-gray-600">{subject.description || 'No description'}</span>
             <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${subject.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>{subject.isActive ? 'Active' : 'Hidden'}</span>
             <div className="flex justify-end gap-1"><button onClick={() => openSubject(subject)} className="rounded-md p-2 text-gray-600 hover:bg-gray-100" aria-label={`Edit ${subject.name}`}><Pencil className="h-4 w-4" /></button><button onClick={() => void remove('subjects', subject._id)} className="rounded-md p-2 text-red-600 hover:bg-red-50" aria-label={`Delete ${subject.name}`}><Trash2 className="h-4 w-4" /></button></div>
           </div>)}
@@ -156,10 +166,11 @@ export default function ContentPage() {
         </div>
       ) : (
         <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-          <div className="grid grid-cols-[minmax(190px,1.2fr)_minmax(190px,1fr)_minmax(180px,1fr)_100px] gap-4 border-b border-gray-200 bg-gray-50 px-5 py-3 text-xs font-bold uppercase tracking-wide text-gray-500"><span>Topic</span><span>Subjects</span><span>Subtopics</span><span className="text-right">Actions</span></div>
-          {topics.map((topic) => <div key={topic._id} className="grid grid-cols-[minmax(190px,1.2fr)_minmax(190px,1fr)_minmax(180px,1fr)_100px] items-center gap-4 border-b border-gray-100 px-5 py-4 last:border-0">
+          <div className="grid grid-cols-[minmax(180px,1.2fr)_minmax(170px,1fr)_minmax(140px,0.8fr)_minmax(170px,1fr)_100px] gap-4 border-b border-gray-200 bg-gray-50 px-5 py-3 text-xs font-bold uppercase tracking-wide text-gray-500"><span>Topic</span><span>Subjects</span><span>Grade</span><span>Subtopics</span><span className="text-right">Actions</span></div>
+          {topics.map((topic) => <div key={topic._id} className="grid grid-cols-[minmax(180px,1.2fr)_minmax(170px,1fr)_minmax(140px,0.8fr)_minmax(170px,1fr)_100px] items-center gap-4 border-b border-gray-100 px-5 py-4 last:border-0">
             <div><p className="font-semibold text-gray-950">{topic.name}</p><p className="mt-1 font-mono text-xs text-gray-500">{topic.code}</p></div>
             <div className="flex flex-wrap gap-1">{(topic.subjects?.length ? topic.subjects : [topic.subject]).map((subject) => <span key={idOf(subject)} className="rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">{typeof subject === 'string' ? 'Subject' : subject.name}</span>)}</div>
+            <span className="text-sm text-gray-600">{typeof topic.grade === 'string' ? 'Grade' : topic.grade.name}</span>
             <div className="flex flex-wrap gap-1">{topic.subtopics?.length ? topic.subtopics.map((subtopic) => <span key={subtopic._id || subtopic.name} className="rounded-md bg-brand-lighter/60 px-2 py-1 text-xs font-medium text-brand-dark">{subtopic.name}</span>) : <span className="text-sm text-gray-500">None</span>}</div>
             <div className="flex justify-end gap-1"><button onClick={() => openTopic(topic)} className="rounded-md p-2 text-gray-600 hover:bg-gray-100" aria-label={`Edit ${topic.name}`}><Pencil className="h-4 w-4" /></button><button onClick={() => void remove('topics', topic._id)} className="rounded-md p-2 text-red-600 hover:bg-red-50" aria-label={`Delete ${topic.name}`}><Trash2 className="h-4 w-4" /></button></div>
           </div>)}
@@ -191,6 +202,23 @@ export default function ContentPage() {
           <ModalField label="Description" htmlFor="subject-description" helper="Optional context for admins reviewing the subject list.">
             <textarea id="subject-description" value={subjectForm.description} onChange={(event) => setSubjectForm({ ...subjectForm, description: event.target.value })} className={`${inputClass} min-h-24 resize-y`} rows={3} />
           </ModalField>
+
+          <fieldset className="rounded-lg border border-gray-200 bg-gray-50/70 p-4">
+            <legend className="px-1 text-sm font-semibold text-gray-800">Grades</legend>
+            <p className="mt-1 text-xs leading-5 text-gray-500">Leave empty when the subject is available to every student grade.</p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              {grades.map((grade) => {
+                const selected = subjectForm.grades.includes(grade._id);
+                return (
+                  <label key={grade._id} className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm font-medium transition focus-within:ring-2 focus-within:ring-brand-primary/20 ${selected ? 'border-brand-primary bg-brand-lighter/40 text-gray-950' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'}`}>
+                    <input type="checkbox" checked={selected} onChange={() => toggleSubjectGrade(grade._id)} className="sr-only" />
+                    <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border ${selected ? 'border-brand-primary bg-brand-primary text-white' : 'border-gray-300 bg-white'}`}>{selected && <Check className="h-3.5 w-3.5" />}</span>
+                    <span className="min-w-0 truncate">{grade.name}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <ModalField label="Color" htmlFor="subject-color" helper="Used as the subject marker in the admin table.">
@@ -240,7 +268,7 @@ export default function ContentPage() {
             <legend className="px-1 text-sm font-semibold text-gray-800">Linked subjects</legend>
             <p className="mt-1 text-xs leading-5 text-gray-500">Select every subject this topic can be used under. The first selected subject controls the chapter list.</p>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              {subjects.filter((subject) => subject.isActive).map((subject) => {
+              {subjects.filter((subject) => subject.isActive && (!topicForm.grade || !subject.grades?.length || subject.grades.some((grade) => grade._id === topicForm.grade))).map((subject) => {
                 const selected = topicForm.subjects.includes(subject._id);
                 return (
                   <label key={subject._id} className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-sm font-medium transition focus-within:ring-2 focus-within:ring-brand-primary/20 ${selected ? 'border-brand-primary bg-brand-lighter/40 text-gray-950' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'}`}>
@@ -251,7 +279,7 @@ export default function ContentPage() {
                 );
               })}
             </div>
-            {!subjects.some((subject) => subject.isActive) && <p className="mt-3 rounded-md bg-white px-3 py-2 text-sm text-gray-500">No active subjects are available.</p>}
+            {!subjects.some((subject) => subject.isActive && (!topicForm.grade || !subject.grades?.length || subject.grades.some((grade) => grade._id === topicForm.grade))) && <p className="mt-3 rounded-md bg-white px-3 py-2 text-sm text-gray-500">No active subjects are available for this grade.</p>}
           </fieldset>
 
           <section className="grid gap-4 sm:grid-cols-2" aria-label="Placement">
