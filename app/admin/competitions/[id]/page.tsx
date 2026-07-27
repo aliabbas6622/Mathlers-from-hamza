@@ -53,11 +53,19 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
           </div>
           <p className="text-gray-600">{competition.description}</p>
         </div>
-        <div className="flex gap-4">
-          <PrimaryButton variant="secondary">
-            <Settings className="w-4 h-4 mr-2" />
-            Settings
-          </PrimaryButton>
+        <div className="flex gap-3">
+          <Link href={`/admin/competitions/${id}/results`}>
+            <PrimaryButton variant="secondary">
+              <Trophy className="w-4 h-4 mr-2" />
+              Leaderboard & Results
+            </PrimaryButton>
+          </Link>
+          <Link href={`/admin/competitions/${id}/edit`}>
+            <PrimaryButton variant="secondary">
+              <Settings className="w-4 h-4 mr-2" />
+              Edit Settings
+            </PrimaryButton>
+          </Link>
         </div>
       </div>
 

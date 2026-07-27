@@ -8,6 +8,8 @@ import PrimaryButton from '@/components/ui/PrimaryButton';
 import Input from '@/components/ui/Input';
 import { ChevronRight, ChevronLeft, Save, X, Plus, Trash2, Check } from 'lucide-react';
 
+import QuestionBankSelectorModal from '@/components/admin/competitions/QuestionBankSelectorModal';
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface SectionData {
@@ -23,6 +25,7 @@ interface SectionData {
   calculatorAllowed: boolean;
   skipAllowed: boolean;
   reviewAllowed: boolean;
+  questions: string[];
 }
 
 interface FormData {
@@ -75,6 +78,7 @@ const defaultSection: SectionData = {
   calculatorAllowed: false,
   skipAllowed: true,
   reviewAllowed: true,
+  questions: [],
 };
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -84,6 +88,7 @@ export default function CreateCompetitionPage() {
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [modalSectionIdx, setModalSectionIdx] = useState<number | null>(null);
 
   const [formData, setFormData] = useState<FormData>({
     name: '', category: 'public', description: '', organizer: '', contact: '',
@@ -111,7 +116,7 @@ export default function CreateCompetitionPage() {
     }));
   };
 
-  const handleSectionChange = (idx: number, field: string, value: string | boolean) => {
+  const handleSectionChange = (idx: number, field: string, value: string | boolean | string[]) => {
     setSections(prev => prev.map((s, i) => i === idx ? { ...s, [field]: value } : s));
   };
 
@@ -138,6 +143,7 @@ export default function CreateCompetitionPage() {
           name: s.name,
           description: s.description,
           order: i,
+          questions: s.questions || [],
           settings: {
             duration: Number(s.duration),
             totalMarks: Number(s.totalMarks),
@@ -397,9 +403,32 @@ export default function CreateCompetitionPage() {
                   </div>
                 )}
               </div>
-              <p className="text-xs text-gray-400">Questions will be assigned from the Question Bank after creation.</p>
+              <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">Question Bank Assignment</p>
+                  <p className="text-xs text-gray-500">
+                    {sec.questions && sec.questions.length > 0
+                      ? `Selected ${sec.questions.length} questions for this section.`
+                      : 'No questions assigned yet.'}
+                  </p>
+                </div>
+                <PrimaryButton type="button" variant="secondary" onClick={() => setModalSectionIdx(idx)}>
+                  Select Questions ({sec.questions?.length || 0})
+                </PrimaryButton>
+              </div>
             </GlassCard>
           ))}
+
+          {/* Question Selector Modal */}
+          {modalSectionIdx !== null && (
+            <QuestionBankSelectorModal
+              isOpen={modalSectionIdx !== null}
+              onClose={() => setModalSectionIdx(null)}
+              selectedQuestionIds={sections[modalSectionIdx]?.questions || []}
+              onSelectQuestions={(selectedIds) => handleSectionChange(modalSectionIdx, 'questions', selectedIds)}
+              sectionName={sections[modalSectionIdx]?.name || `Section ${modalSectionIdx + 1}`}
+            />
+          )}
         </div>
       )}
 

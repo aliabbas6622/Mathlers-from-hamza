@@ -180,11 +180,25 @@ export default function StudentCompetitionCenter({
                       </button>
                     </div>
 
-                    <Link href={`/student/competitions/${comp._id.toString()}`} className="block">
-                      <div className="w-full py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-center font-semibold text-xs transition-colors">
-                        View Competition →
-                      </div>
-                    </Link>
+                    {comp.status === 'in_progress' ? (
+                      <Link href={`/student/competitions/${comp._id.toString()}/start`} className="block">
+                        <div className="w-full py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-center font-bold text-xs shadow-md transition-all animate-pulse">
+                          🚀 Enter Live Exam Now →
+                        </div>
+                      </Link>
+                    ) : comp.status === 'completed' || enrollment?.status === 'completed' ? (
+                      <Link href={`/student/competitions/${comp._id.toString()}/results`} className="block">
+                        <div className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-center font-semibold text-xs transition-colors">
+                          🏆 View Score & Results →
+                        </div>
+                      </Link>
+                    ) : (
+                      <Link href={`/student/competitions/${comp._id.toString()}`} className="block">
+                        <div className="w-full py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-center font-semibold text-xs transition-colors">
+                          View Competition →
+                        </div>
+                      </Link>
+                    )}
                   </div>
                 ) : (
                   <Link href={`/student/competitions/${comp._id.toString()}`} className="block mt-auto">
@@ -211,7 +225,7 @@ export default function StudentCompetitionCenter({
             </button>
 
             {/* Pass Printable Card */}
-            <div className="p-6 bg-gradient-to-br from-brand-dark via-brand-primary to-indigo-900 rounded-2xl text-white shadow-xl space-y-4 relative overflow-hidden">
+            <div className="print-pass-card p-6 bg-gradient-to-br from-brand-dark via-brand-primary to-indigo-900 rounded-2xl text-white shadow-xl space-y-4 relative overflow-hidden">
               <div className="absolute -right-8 -bottom-8 opacity-10">
                 <Trophy className="w-48 h-48 text-white" />
               </div>

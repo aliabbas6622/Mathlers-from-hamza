@@ -24,9 +24,9 @@ export async function POST(request: NextRequest) {
 
     const normalizedCode = code.trim().toUpperCase();
 
-    // Find competition matching code
+    // Find competition matching code (case-insensitive)
     const competition = await CompetitionModel.findOne({
-      'registration.accessCode': normalizedCode,
+      'registration.accessCode': { $regex: `^${normalizedCode}$`, $options: 'i' },
     });
 
     if (!competition) {

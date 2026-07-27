@@ -281,7 +281,7 @@ export default function JoinWithCodeSection({ studentName = 'Student' }: { stude
             </button>
 
             {/* Pass Printable Card */}
-            <div className="p-6 bg-gradient-to-br from-brand-dark via-brand-primary to-indigo-900 rounded-2xl text-white shadow-xl space-y-4 relative overflow-hidden">
+            <div className="print-pass-card p-6 bg-gradient-to-br from-brand-dark via-brand-primary to-indigo-900 rounded-2xl text-white shadow-xl space-y-4 relative overflow-hidden">
               <div className="absolute -right-8 -bottom-8 opacity-10">
                 <Trophy className="w-48 h-48 text-white" />
               </div>

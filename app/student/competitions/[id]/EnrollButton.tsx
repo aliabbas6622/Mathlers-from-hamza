@@ -4,22 +4,46 @@ import React, { useState } from 'react';
 import PrimaryButton from '@/components/ui/PrimaryButton';
 import { useRouter } from 'next/navigation';
 
+import Link from 'next/link';
+
 export default function EnrollButton({ 
   competitionId, 
   isEnrolled,
   isFull,
   registrationOpen,
+  status,
 }: { 
   competitionId: string, 
   isEnrolled: boolean,
   isFull: boolean,
   registrationOpen: boolean,
+  status?: string,
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
 
   if (isEnrolled) {
+    if (status === 'in_progress') {
+      return (
+        <Link href={`/student/competitions/${competitionId}/start`} className="block w-full">
+          <PrimaryButton className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 animate-pulse">
+            🚀 Enter Live Exam Now →
+          </PrimaryButton>
+        </Link>
+      );
+    }
+
+    if (status === 'completed') {
+      return (
+        <Link href={`/student/competitions/${competitionId}/results`} className="block w-full">
+          <PrimaryButton className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3">
+            🏆 View My Results →
+          </PrimaryButton>
+        </Link>
+      );
+    }
+
     return (
       <PrimaryButton variant="secondary" className="w-full text-green-700 bg-green-50 border-green-200 pointer-events-none">
         ✓ You are enrolled in this competition

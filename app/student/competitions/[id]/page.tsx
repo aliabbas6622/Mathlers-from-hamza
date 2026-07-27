@@ -186,6 +186,7 @@ export default async function StudentCompetitionDetailPage({ params }: { params:
                 isEnrolled={isEnrolled}
                 isFull={isFull}
                 registrationOpen={registrationOpen}
+                status={competition.status}
               />
             </div>
           </GlassCard>

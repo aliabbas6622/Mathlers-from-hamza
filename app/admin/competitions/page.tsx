@@ -93,7 +93,12 @@ export default async function CompetitionsPage() {
                     </td>
                     <td className="py-4 px-4">
                       <div className="flex gap-2">
-                        <Link href={`/admin/competitions/${comp._id.toString()}`}>
+                        <Link href={`/admin/competitions/${comp._id.toString()}/results`} title="View Leaderboard & Results">
+                          <button className="p-2 hover:bg-yellow-50 text-yellow-600 rounded-lg transition-colors flex items-center gap-1 font-semibold text-xs">
+                            <Trophy className="w-4 h-4" /> Leaderboard
+                          </button>
+                        </Link>
+                        <Link href={`/admin/competitions/${comp._id.toString()}/edit`} title="Edit Competition">
                           <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                             <Edit className="w-4 h-4 text-gray-600" />
                           </button>
