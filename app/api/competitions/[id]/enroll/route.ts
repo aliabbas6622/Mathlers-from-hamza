@@ -4,6 +4,7 @@ import connectDB from '@/lib/db/mongodb';
 import CompetitionModel, { CompetitionStatus } from '@/models/Competition';
 import EnrollmentModel, { EnrollmentStatus } from '@/models/Enrollment';
 import UserModel from '@/models/User';
+import mongoose from 'mongoose';
 
 export async function POST(
   _request: NextRequest,
@@ -13,6 +14,11 @@ export async function POST(
 
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Guard against bypass/dev user IDs that aren't valid ObjectIds
+  if (!mongoose.Types.ObjectId.isValid(session.user.id)) {
+    return NextResponse.json({ error: 'Cannot enroll with a bypass account. Please log in with a real account.' }, { status: 400 });
   }
 
   await connectDB();

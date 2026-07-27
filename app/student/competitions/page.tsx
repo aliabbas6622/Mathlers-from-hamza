@@ -1,11 +1,13 @@
 import { auth } from '@/lib/auth/auth';
 import { redirect } from 'next/navigation';
 import connectDB from '@/lib/db/mongodb';
-import CompetitionModel from '@/models/Competition';
+import CompetitionModel, { CompetitionStatus } from '@/models/Competition';
 import EnrollmentModel from '@/models/Enrollment';
 import GlassCard from '@/components/ui/GlassCard';
 import PrimaryButton from '@/components/ui/PrimaryButton';
 import { Trophy, Calendar, Users, Target } from 'lucide-react';
+import Link from 'next/link';
+import { isValidObjectId } from '@/lib/utils/isValidObjectId';
 
 export default async function CompetitionsPage() {
   const session = await auth();
@@ -16,11 +18,15 @@ export default async function CompetitionsPage() {
 
   await connectDB();
 
-  const competitions = await CompetitionModel.find().limit(10);
+  // Find all active or upcoming competitions
+  const competitions = await CompetitionModel.find({
+    status: { $in: [CompetitionStatus.REGISTRATION_OPEN, CompetitionStatus.IN_PROGRESS, CompetitionStatus.DRAFT] }
+  }).sort({ 'competition.startDate': 1 });
 
-  const enrollments = await EnrollmentModel.find({ 
-    student: session.user.id 
-  });
+  const hasValidId = isValidObjectId(session.user.id);
+  const enrollments = hasValidId 
+    ? await EnrollmentModel.find({ student: session.user.id }) 
+    : [];
 
   const enrolledIds = enrollments.map(e => e.competition.toString());
 
@@ -34,50 +40,54 @@ export default async function CompetitionsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {competitions.map((comp: any) => {
           const isEnrolled = enrolledIds.includes(comp._id.toString());
+          const startDate = comp.competition?.startDate ? new Date(comp.competition.startDate).toLocaleDateString() : 'TBA';
+          const participants = comp.analytics?.registrations || 0;
           
           return (
-            <GlassCard key={comp._id.toString()} className="p-6 hover:scale-105 transition-transform">
-              <div className="relative mb-4">
-                <div className="w-full h-32 bg-gradient-to-br from-brand-primary to-brand-dark rounded-xl flex items-center justify-center">
-                  <Trophy className="w-12 h-12 text-white opacity-80" />
+            <Link href={`/student/competitions/${comp._id.toString()}`} key={comp._id.toString()} className="block hover:scale-105 transition-transform">
+              <GlassCard className="p-6 h-full flex flex-col">
+                <div className="relative mb-4">
+                  <div className="w-full h-32 bg-gradient-to-br from-brand-primary to-brand-dark rounded-xl flex items-center justify-center">
+                    <Trophy className="w-12 h-12 text-white opacity-80" />
+                  </div>
+                  <span className={`absolute top-3 right-3 text-xs px-3 py-1 rounded-full font-semibold ${
+                    String(comp.status) === 'in_progress' ? 'bg-green-500 text-white' :
+                    String(comp.status) === 'registration_open' ? 'bg-blue-500 text-white' :
+                    'bg-gray-500 text-white'
+                  }`}>
+                    {String(comp.status).replace('_', ' ').toUpperCase()}
+                  </span>
                 </div>
-                <span className={`absolute top-3 right-3 text-xs px-3 py-1 rounded-full font-semibold ${
-                  String(comp.status) === 'active' ? 'bg-green-500 text-white' :
-                  String(comp.status) === 'upcoming' ? 'bg-blue-500 text-white' :
-                  'bg-gray-500 text-white'
-                }`}>
-                  {String(comp.status)}
-                </span>
-              </div>
 
-              <h3 className="text-xl font-bold text-gray-900 mb-2">{comp.name}</h3>
-              <p className="text-gray-600 text-sm mb-4 line-clamp-2">{comp.description}</p>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">{comp.name}</h3>
+                <p className="text-gray-600 text-sm mb-4 line-clamp-2 flex-grow">{comp.description}</p>
 
-              <div className="space-y-2 mb-6">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Calendar className="w-4 h-4" />
-                  <span>{new Date(comp.startDate).toLocaleDateString()}</span>
+                <div className="space-y-2 mb-6">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Calendar className="w-4 h-4 text-brand-primary" />
+                    <span>{startDate}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Users className="w-4 h-4 text-blue-500" />
+                    <span>{participants} Participants</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Target className="w-4 h-4 text-orange-500" />
+                    <span>{comp.rounds?.length || 0} Rounds</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Users className="w-4 h-4" />
-                  <span>{comp.participants || 0} Participants</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Target className="w-4 h-4" />
-                  <span>{comp.rounds?.length || 0} Rounds</span>
-                </div>
-              </div>
 
-              {isEnrolled ? (
-                <PrimaryButton variant="secondary" className="w-full" disabled>
-                  ✓ Enrolled
-                </PrimaryButton>
-              ) : (
-                <PrimaryButton className="w-full">
-                  Enroll Now
-                </PrimaryButton>
-              )}
-            </GlassCard>
+                {isEnrolled ? (
+                  <PrimaryButton variant="secondary" className="w-full pointer-events-none text-green-700 bg-green-50 border-green-200">
+                    ✓ Enrolled
+                  </PrimaryButton>
+                ) : (
+                  <PrimaryButton className="w-full pointer-events-none">
+                    View Details
+                  </PrimaryButton>
+                )}
+              </GlassCard>
+            </Link>
           );
         })}
       </div>
