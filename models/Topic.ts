@@ -3,11 +3,17 @@ import baseSchema, { BaseDocument } from './Base';
 
 export interface ITopic extends BaseDocument {
   subject: mongoose.Types.ObjectId;
+  subjects: mongoose.Types.ObjectId[];
   grade: mongoose.Types.ObjectId;
   chapter: mongoose.Types.ObjectId;
   name: string;
   code: string;
   description?: string;
+  subtopics: Array<{
+    _id?: mongoose.Types.ObjectId;
+    name: string;
+    code?: string;
+  }>;
   order: number;
   isActive: boolean;
 }
@@ -19,6 +25,10 @@ const TopicSchema = new Schema<ITopic>(
       ref: 'Subject',
       required: [true, 'Subject is required'],
     },
+    subjects: [{
+      type: Schema.Types.ObjectId,
+      ref: 'Subject',
+    }],
     grade: {
       type: Schema.Types.ObjectId,
       ref: 'Grade',
@@ -43,6 +53,10 @@ const TopicSchema = new Schema<ITopic>(
       type: String,
       trim: true,
     },
+    subtopics: [{
+      name: { type: String, required: true, trim: true },
+      code: { type: String, trim: true },
+    }],
     order: {
       type: Number,
       default: 0,

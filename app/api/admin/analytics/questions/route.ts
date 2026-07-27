@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     const timeRange = searchParams.get('timeRange') || 'all';
 
     // Build match stage
-    const matchStage: any = {};
+    const matchStage: Record<string, unknown> = {};
     
     if (subject) matchStage.subject = new mongoose.Types.ObjectId(subject);
     if (grade) matchStage.grade = new mongoose.Types.ObjectId(grade);
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     
     if (timeRange !== 'all') {
       const now = new Date();
-      let startDate = new Date();
+      const startDate = new Date();
       
       switch (timeRange) {
         case 'today':

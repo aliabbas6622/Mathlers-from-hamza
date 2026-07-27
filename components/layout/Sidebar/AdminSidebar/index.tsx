@@ -28,9 +28,9 @@ export default function AdminSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed left-0 top-0 h-full w-64 bg-white/80 backdrop-blur-xl border-r border-gray-200/50 z-50">
-      <div className="p-6">
-        <Link href="/admin/dashboard" className="flex items-center gap-3 mb-8">
+    <aside className="fixed left-0 top-0 z-50 flex h-dvh w-64 flex-col overflow-hidden border-r border-gray-200/50 bg-white/80 backdrop-blur-xl">
+      <div className="flex min-h-0 flex-1 flex-col p-6">
+        <Link href="/admin/dashboard" className="mb-8 flex shrink-0 items-center gap-3">
           <div className="w-10 h-10 bg-brand-primary rounded-xl flex items-center justify-center">
             <span className="text-white font-bold text-xl">M</span>
           </div>
@@ -40,7 +40,7 @@ export default function AdminSidebar() {
           </div>
         </Link>
 
-        <nav className="space-y-2">
+        <nav className="min-h-0 flex-1 space-y-2 overflow-y-auto pb-2 pr-1 overscroll-contain">
           {menuItems.map((item) => {
             const isActive = pathname === item.href;
             const Icon = item.icon;

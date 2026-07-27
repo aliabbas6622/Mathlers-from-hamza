@@ -9,12 +9,12 @@ export default async function AdminLayout({
 }) {
   const session = await auth();
   
-  if (!session || session.user.role !== 'admin') {
+  if (!session || !['admin', 'super_admin'].includes(session.user.role)) {
     redirect('/login');
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-red-50 to-white">
+    <div data-portal="admin" className="min-h-screen">
       <AdminSidebar />
       <main className="ml-64 p-8">
         {children}

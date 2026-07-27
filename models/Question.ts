@@ -12,6 +12,7 @@ export interface IQuestion extends BaseDocument {
   grade: mongoose.Types.ObjectId;
   chapter: mongoose.Types.ObjectId;
   topic: mongoose.Types.ObjectId;
+  subtopic?: mongoose.Types.ObjectId;
   question: string;
   options: {
     A: string;
@@ -69,6 +70,9 @@ const QuestionSchema = new Schema<IQuestion>(
       type: Schema.Types.ObjectId,
       ref: 'Topic',
       required: [true, 'Topic is required'],
+    },
+    subtopic: {
+      type: Schema.Types.ObjectId,
     },
     question: {
       type: String,
@@ -217,7 +221,7 @@ const QuestionSchema = new Schema<IQuestion>(
   }
 );
 
-QuestionSchema.index({ subject: 1, grade: 1, chapter: 1, topic: 1 });
+QuestionSchema.index({ subject: 1, grade: 1, chapter: 1, topic: 1, subtopic: 1 });
 QuestionSchema.index({ difficulty: 1 });
 QuestionSchema.index({ status: 1 });
 QuestionSchema.index({ 'analytics.totalAttempts': -1 });

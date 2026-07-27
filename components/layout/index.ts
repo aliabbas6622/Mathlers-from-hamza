@@ -1,5 +1,4 @@
 // Barrel export for Layout components
-export { AdminSidebar } from './Sidebar/AdminSidebar';
-export { StudentSidebar } from './Sidebar/StudentSidebar';
-export { Header } from './Header';
-export { Footer } from './Footer';
+export { default as AdminSidebar } from './Sidebar/AdminSidebar';
+export { default as StudentSidebar } from './Sidebar/StudentSidebar';
+export { default as Header } from './Header';

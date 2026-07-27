@@ -1,10 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import GlassCard from '@/components/ui/GlassCard';
-import PrimaryButton from '@/components/ui/PrimaryButton';
 import StatCard from '@/components/ui/StatCard';
-import { BarChart3, TrendingUp, Award, Clock, BookOpen, Target } from 'lucide-react';
+import { TrendingUp, Award, BookOpen, Target } from 'lucide-react';
+
+interface QuestionSummary {
+  _id: string;
+  question: string;
+  subject?: { name: string };
+  grade?: { name: string };
+  analytics?: {
+    totalAttempts?: number;
+    correctPercentage?: number;
+  };
+}
 
 interface AnalyticsData {
   overall: {
@@ -29,9 +39,14 @@ interface AnalyticsData {
     _id: string;
     count: number;
   }>;
-  topAttempted: any[];
-  hardest: any[];
-  easiest: any[];
+  topAttempted: QuestionSummary[];
+  hardest: QuestionSummary[];
+  easiest: QuestionSummary[];
+}
+
+interface AnalyticsResponse {
+  success?: boolean;
+  data?: AnalyticsData;
 }
 
 export default function QuestionAnalyticsPage() {
@@ -39,17 +54,13 @@ export default function QuestionAnalyticsPage() {
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [selectedTimeRange, setSelectedTimeRange] = useState('all');
 
-  useEffect(() => {
-    fetchAnalytics();
-  }, [selectedTimeRange]);
-
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     try {
       setLoading(true);
       const res = await fetch(`/api/admin/analytics/questions?timeRange=${selectedTimeRange}`);
-      const data = await res.json();
+      const data = await res.json() as AnalyticsResponse;
       
-      if (data.success) {
+      if (data.success && data.data) {
         setAnalytics(data.data);
       }
     } catch (error) {
@@ -57,7 +68,11 @@ export default function QuestionAnalyticsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedTimeRange]);
+
+  useEffect(() => {
+    void Promise.resolve().then(fetchAnalytics);
+  }, [fetchAnalytics]);
 
   if (loading) {
     return (
@@ -99,27 +114,27 @@ export default function QuestionAnalyticsPage() {
       {/* Overview Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
-          title="Total Questions"
+          label="Total Questions"
           value={analytics.overall.totalQuestions.toString()}
-          icon={BookOpen}
+          icon={<BookOpen className="w-6 h-6 text-brand-primary" />}
           trend="+12%"
         />
         <StatCard
-          title="Total Attempts"
+          label="Total Attempts"
           value={analytics.overall.totalAttempts.toLocaleString()}
-          icon={Target}
+          icon={<Target className="w-6 h-6 text-brand-primary" />}
           trend="+8%"
         />
         <StatCard
-          title="Avg Success Rate"
+          label="Avg Success Rate"
           value={`${analytics.overall.avgCorrectPercentage.toFixed(1)}%`}
-          icon={Award}
+          icon={<Award className="w-6 h-6 text-brand-primary" />}
           trend={analytics.overall.avgCorrectPercentage >= 70 ? '+5%' : '-3%'}
         />
         <StatCard
-          title="Avg Difficulty Index"
+          label="Avg Difficulty Index"
           value={analytics.overall.avgDifficultyIndex.toFixed(2)}
-          icon={TrendingUp}
+          icon={<TrendingUp className="w-6 h-6 text-brand-primary" />}
           trend="Stable"
         />
       </div>
