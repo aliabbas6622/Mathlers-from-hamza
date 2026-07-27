@@ -6,19 +6,25 @@ import PracticeSetModel from '@/models/PracticeSet';
 import SubjectModel from '@/models/Subject';
 import GlassCard from '@/components/ui/GlassCard';
 import PrimaryButton from '@/components/ui/PrimaryButton';
-import { BookOpen, Zap, Target, Clock } from 'lucide-react';
+import { BookOpen, Target, Clock, Filter } from 'lucide-react';
 
 type ListItem = { _id: { toString(): string }; name: string };
 type PracticeSetItem = ListItem & {
   description?: string;
-  difficulty?: 'easy' | 'medium' | 'hard';
+  difficulty?: 'easy' | 'medium' | 'hard' | 'mixed' | 'all';
+  type?: string;
   subject?: { name?: string };
   grade?: { name?: string };
   questions?: unknown[];
   timeLimit?: number;
 };
 
-export default async function PracticePage() {
+export default async function PracticePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ subject?: string; difficulty?: string }>;
+}) {
+  const resolvedSearchParams = await searchParams;
   const session = await auth();
   
   if (!session) {
@@ -28,151 +34,112 @@ export default async function PracticePage() {
   await connectDB();
 
   const now = new Date();
+  
+  const query: any = {
+    isPublished: true,
+    $or: [
+      { 'availability.startDate': { $exists: false } },
+      { 'availability.startDate': { $lte: now } }
+    ],
+    $and: [
+      { $or: [{ 'availability.endDate': { $exists: false } }, { 'availability.endDate': { $gte: now } }] }
+    ]
+  };
+
+  if (resolvedSearchParams.subject) {
+    query.subject = resolvedSearchParams.subject;
+  }
+  
+  if (resolvedSearchParams.difficulty && resolvedSearchParams.difficulty !== 'all') {
+    query.difficulty = resolvedSearchParams.difficulty;
+  }
+
   const [practiceSets, subjects] = await Promise.all([
-    PracticeSetModel.find({
-      isPublished: true,
-      'availability.startDate': { $lte: now },
-      'availability.endDate': { $gte: now },
-    })
+    PracticeSetModel.find(query)
       .populate('subject', 'name')
       .populate('grade', 'name')
-      .select('name description difficulty subject grade questions timeLimit')
-      .limit(20)
+      .select('name description difficulty type subject grade questions timeLimit')
+      .sort({ createdAt: -1 })
+      .limit(50)
       .lean(),
     SubjectModel.find({ isActive: true }).select('name').sort({ order: 1 }).lean(),
   ]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Practice Arena</h1>
-        <p className="text-gray-600">Choose your practice mode and start improving</p>
+        <p className="text-gray-600">Select a practice book to start improving your skills.</p>
       </div>
 
-      {/* Practice Mode Selection */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <GlassCard className="p-6 hover:scale-105 transition-transform cursor-pointer">
-          <div className="text-center">
-            <div className="w-16 h-16 bg-brand-lighter rounded-full mx-auto mb-4 flex items-center justify-center">
-              <BookOpen className="w-8 h-8 text-brand-primary" />
-            </div>
-            <h3 className="font-bold text-gray-900 mb-2">Topic Practice</h3>
-            <p className="text-sm text-gray-600">Master specific topics</p>
-          </div>
-        </GlassCard>
-
-        <GlassCard className="p-6 hover:scale-105 transition-transform cursor-pointer">
-          <div className="text-center">
-            <div className="w-16 h-16 bg-brand-lighter rounded-full mx-auto mb-4 flex items-center justify-center">
-              <Zap className="w-8 h-8 text-brand-primary" />
-            </div>
-            <h3 className="font-bold text-gray-900 mb-2">Daily Challenge</h3>
-            <p className="text-sm text-gray-600">New problems every day</p>
-          </div>
-        </GlassCard>
-
-        <GlassCard className="p-6 hover:scale-105 transition-transform cursor-pointer">
-          <div className="text-center">
-            <div className="w-16 h-16 bg-brand-lighter rounded-full mx-auto mb-4 flex items-center justify-center">
-              <Clock className="w-8 h-8 text-brand-primary" />
-            </div>
-            <h3 className="font-bold text-gray-900 mb-2">Speed Practice</h3>
-            <p className="text-sm text-gray-600">Test your speed</p>
-          </div>
-        </GlassCard>
-
-        <GlassCard className="p-6 hover:scale-105 transition-transform cursor-pointer">
-          <div className="text-center">
-            <div className="w-16 h-16 bg-brand-lighter rounded-full mx-auto mb-4 flex items-center justify-center">
-              <Target className="w-8 h-8 text-brand-primary" />
-            </div>
-            <h3 className="font-bold text-gray-900 mb-2">Mixed Challenge</h3>
-            <p className="text-sm text-gray-600">Random topic mix</p>
-          </div>
-        </GlassCard>
-      </div>
-
-      {/* Step Navigation */}
       <GlassCard className="p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-6">Browse by Topic</h2>
-        
-        <div className="flex items-center gap-4 mb-6">
-          <div className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-xl">
-            <span className="font-semibold">Subject</span>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+          <h2 className="text-xl font-bold text-gray-900">Available Practice Books</h2>
+          
+          <div className="flex items-center gap-3">
+            <Filter className="w-4 h-4 text-gray-500" />
+            <span className="text-sm font-semibold text-gray-700">Filter:</span>
+            <div className="flex gap-2">
+              <Link href={`/student/practice?difficulty=${resolvedSearchParams.difficulty || ''}`}>
+                <span className={`text-sm px-3 py-1.5 rounded-lg border cursor-pointer ${!resolvedSearchParams.subject ? 'bg-brand-primary text-white border-brand-primary' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}>
+                  All Subjects
+                </span>
+              </Link>
+              {(subjects as ListItem[]).map((sub) => (
+                <Link key={sub._id.toString()} href={`/student/practice?subject=${sub._id}&difficulty=${resolvedSearchParams.difficulty || ''}`}>
+                  <span className={`text-sm px-3 py-1.5 rounded-lg border cursor-pointer ${resolvedSearchParams.subject === sub._id.toString() ? 'bg-brand-primary text-white border-brand-primary' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}>
+                    {sub.name}
+                  </span>
+                </Link>
+              ))}
+            </div>
           </div>
-          <div className="text-gray-400">→</div>
-          <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-600 rounded-xl">
-            <span>Grade</span>
-          </div>
-          <div className="text-gray-400">→</div>
-          <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-600 rounded-xl">
-            <span>Chapter</span>
-          </div>
-          <div className="text-gray-400">→</div>
-          <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-600 rounded-xl">
-            <span>Topic</span>
-          </div>
-          <div className="text-gray-400">→</div>
-          <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-600 rounded-xl">
-            <span>Practice Set</span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {(subjects as ListItem[]).map((subject) => (
-            <Link key={subject._id.toString()} href={`/student/practice/subject/${subject._id}`}>
-              <GlassCard className="p-4 text-center hover:scale-105 transition-transform">
-                <div className="w-12 h-12 bg-brand-lighter rounded-full mx-auto mb-3 flex items-center justify-center">
-                  <BookOpen className="w-6 h-6 text-brand-primary" />
-                </div>
-                <p className="font-semibold text-gray-900 text-sm">{subject.name}</p>
-              </GlassCard>
-            </Link>
-          ))}
-        </div>
-      </GlassCard>
-
-      {/* Available Practice Sets */}
-      <GlassCard className="p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-gray-900">Available Practice Sets</h2>
-          <PrimaryButton variant="secondary" size="sm">View All</PrimaryButton>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {(practiceSets as PracticeSetItem[]).map((set) => (
-            <GlassCard key={set._id.toString()} className="p-6 hover:scale-105 transition-transform">
+            <GlassCard key={set._id.toString()} className="p-6 hover:scale-105 transition-transform flex flex-col h-full">
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <h3 className="font-bold text-gray-900 mb-1">{set.name}</h3>
-                  <p className="text-sm text-gray-600">{set.description}</p>
+                  <p className="text-sm text-gray-600 line-clamp-2">{set.description || 'No description provided.'}</p>
                 </div>
-                <span className={`text-xs px-2 py-1 rounded-full ${
+                <span className={`text-xs px-2 py-1 rounded-full whitespace-nowrap ${
                   set.difficulty === 'easy' ? 'bg-green-100 text-green-700' :
                   set.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                  'bg-red-100 text-red-700'
+                  set.difficulty === 'hard' ? 'bg-red-100 text-red-700' :
+                  'bg-gray-100 text-gray-700'
                 }`}>
-                  {set.difficulty}
+                  {set.difficulty || 'mixed'}
                 </span>
               </div>
 
               <div className="flex gap-2 mb-4">
-                <span className="text-xs bg-brand-lighter text-brand-primary px-2 py-1 rounded-full">
-                  {set.subject?.name || 'General'}
-                </span>
-                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
-                  {set.grade?.name || 'All Grades'}
-                </span>
+                {set.subject && (
+                  <span className="text-xs bg-brand-lighter text-brand-primary px-2 py-1 rounded-full">
+                    {set.subject.name}
+                  </span>
+                )}
+                {set.grade && (
+                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                    {set.grade.name}
+                  </span>
+                )}
+                {set.type && (
+                  <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full capitalize">
+                    {set.type.replace(/_/g, ' ')}
+                  </span>
+                )}
               </div>
 
-              <div className="flex items-center gap-4 text-sm text-gray-600 mb-4">
-                <div className="flex items-center gap-1">
-                  <Target className="w-4 h-4" />
-                  <span>{set.questions?.length || 0} Questions</span>
+              <div className="flex items-center gap-4 text-sm text-gray-600 mb-6 mt-auto">
+                <div className="flex items-center gap-1.5">
+                  <Target className="w-4 h-4 text-gray-400" />
+                  <span className="font-medium">{set.questions?.length || 0} Questions</span>
                 </div>
-                <div className="flex items-center gap-1">
-                  <Clock className="w-4 h-4" />
-                  <span>{set.timeLimit || 30} min</span>
+                <div className="flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 text-gray-400" />
+                  <span className="font-medium">{Math.round((set.timeLimit || 1800) / 60)} min</span>
                 </div>
               </div>
 
@@ -184,9 +151,10 @@ export default async function PracticePage() {
         </div>
 
         {practiceSets.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
-            <BookOpen className="w-16 h-16 mx-auto mb-4 opacity-50" />
-            <p>No practice sets available yet.</p>
+          <div className="text-center py-16 text-gray-500 border border-dashed border-gray-300 rounded-xl mt-4">
+            <BookOpen className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+            <p className="text-lg font-medium text-gray-900 mb-1">No practice books found</p>
+            <p className="text-sm">Check back later or adjust your filters.</p>
           </div>
         )}
       </GlassCard>

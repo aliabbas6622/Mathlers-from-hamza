@@ -50,8 +50,13 @@ export async function GET(
     const practiceSet = await PracticeSetModel.findOne({
       _id: id,
       isPublished: true,
-      'availability.startDate': { $lte: now },
-      'availability.endDate': { $gte: now },
+      $or: [
+        { 'availability.startDate': { $exists: false } },
+        { 'availability.startDate': { $lte: now } }
+      ],
+      $and: [
+        { $or: [{ 'availability.endDate': { $exists: false } }, { 'availability.endDate': { $gte: now } }] }
+      ]
     })
       .populate({
         path: 'questions',

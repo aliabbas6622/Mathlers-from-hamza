@@ -28,6 +28,8 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || '';
     const subject = searchParams.get('subject') || '';
     const grade = searchParams.get('grade') || '';
+    const topic = searchParams.get('topic') || '';
+    const subtopic = searchParams.get('subtopic') || '';
     const difficulty = searchParams.get('difficulty') || '';
     const status = searchParams.get('status') || '';
 
@@ -42,6 +44,8 @@ export async function GET(request: NextRequest) {
 
     if (subject) query.subject = subject;
     if (grade) query.grade = grade;
+    if (topic) query.topic = topic;
+    if (subtopic) query.subtopic = subtopic;
     if (difficulty && !Object.values(Difficulty).includes(difficulty as Difficulty)) {
       return NextResponse.json(questionError('Difficulty must be easy, medium, or hard', 'INVALID_FILTER'), { status: 400 });
     }

@@ -12,6 +12,10 @@ type JsonReadResult =
   | { ok: false; status: 400 | 413; error: string; code: 'INVALID_JSON' | 'PAYLOAD_TOO_LARGE' };
 
 const text = (max: number) => z.string().trim().min(1).max(max);
+const optionalText = (max: number) => z.preprocess(
+  (val) => (val === '' || val === null || val === undefined ? undefined : String(val).trim()),
+  z.string().max(max).optional()
+);
 const optionalNumber = (max: number, integer = false) => z.preprocess(
   (value) => value === '' || value === null || value === undefined ? undefined : Number(value),
   integer
@@ -28,10 +32,10 @@ const optionsSchema = z.object({
 
 const questionFields = z.object({
   subject: text(100),
-  grade: text(100),
-  chapter: text(100),
-  topic: text(100),
-  subtopic: text(100).optional(),
+  grade: optionalText(100),
+  chapter: optionalText(100),
+  topic: optionalText(100),
+  subtopic: optionalText(100),
   question: text(12_000),
   options: optionsSchema,
   correctAnswer: z.enum(['A', 'B', 'C', 'D']),
@@ -182,14 +186,11 @@ export const questionDuplicateKey = ({ subject, grade, chapter, topic, subtopic,
   'subject' | 'grade' | 'chapter' | 'topic' | 'subtopic' | 'question'
 >) => [subject, grade, chapter, topic, subtopic || '', question.trim().replace(/\s+/g, ' ')].join(':');
 
-export const questionDuplicateFilter = ({ subject, grade, chapter, topic, subtopic, question }: Pick<
-  QuestionPayload,
-  'subject' | 'grade' | 'chapter' | 'topic' | 'subtopic' | 'question'
->) => ({
+export const questionDuplicateFilter = ({ subject, grade, chapter, topic, subtopic, question }: Partial<QuestionPayload> & { subject: string; question: string }) => ({
   subject,
-  grade,
-  chapter,
-  topic,
+  ...(grade ? { grade } : {}),
+  ...(chapter ? { chapter } : {}),
+  ...(topic ? { topic } : {}),
   subtopic: subtopic || null,
   question,
 });

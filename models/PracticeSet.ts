@@ -11,20 +11,16 @@ export enum PracticeSetType {
 export interface IPracticeSet extends BaseDocument {
   name: string;
   description?: string;
-  difficulty: 'easy' | 'medium' | 'hard';
+  difficulty: 'easy' | 'medium' | 'hard' | 'mixed' | 'all';
   type: PracticeSetType;
-  subject: mongoose.Types.ObjectId;
-  grade: mongoose.Types.ObjectId;
+  subject?: mongoose.Types.ObjectId;
+  grade?: mongoose.Types.ObjectId;
   chapter?: mongoose.Types.ObjectId;
   topic?: mongoose.Types.ObjectId;
   questions: mongoose.Types.ObjectId[];
   sections: {
     name: string;
     instructions?: string;
-    subject: mongoose.Types.ObjectId;
-    grade: mongoose.Types.ObjectId;
-    chapter?: mongoose.Types.ObjectId;
-    topic?: mongoose.Types.ObjectId;
     questions: mongoose.Types.ObjectId[];
   }[];
   timeLimit: number;
@@ -57,8 +53,8 @@ const PracticeSetSchema = new Schema<IPracticeSet>(
     },
     difficulty: {
       type: String,
-      enum: ['easy', 'medium', 'hard'],
-      default: 'medium',
+      enum: ['easy', 'medium', 'hard', 'mixed', 'all'],
+      default: 'mixed',
     },
     type: {
       type: String,
@@ -68,12 +64,10 @@ const PracticeSetSchema = new Schema<IPracticeSet>(
     subject: {
       type: Schema.Types.ObjectId,
       ref: 'Subject',
-      required: [true, 'Subject is required'],
     },
     grade: {
       type: Schema.Types.ObjectId,
       ref: 'Grade',
-      required: [true, 'Grade is required'],
     },
     chapter: {
       type: Schema.Types.ObjectId,
@@ -90,10 +84,6 @@ const PracticeSetSchema = new Schema<IPracticeSet>(
     sections: [{
       name: { type: String, required: true, trim: true },
       instructions: { type: String, trim: true, maxlength: 1000 },
-      subject: { type: Schema.Types.ObjectId, ref: 'Subject', required: true },
-      grade: { type: Schema.Types.ObjectId, ref: 'Grade', required: true },
-      chapter: { type: Schema.Types.ObjectId, ref: 'Chapter' },
-      topic: { type: Schema.Types.ObjectId, ref: 'Topic' },
       questions: [{ type: Schema.Types.ObjectId, ref: 'Question' }],
     }],
     timeLimit: {
@@ -109,11 +99,9 @@ const PracticeSetSchema = new Schema<IPracticeSet>(
     availability: {
       startDate: {
         type: Date,
-        required: [true, 'Start date is required'],
       },
       endDate: {
         type: Date,
-        required: [true, 'End date is required'],
       },
     },
     isPublished: {
@@ -154,6 +142,11 @@ PracticeSetSchema.index({ type: 1 });
 PracticeSetSchema.index({ isPublished: 1 });
 PracticeSetSchema.index({ 'availability.startDate': 1, 'availability.endDate': 1 });
 
-const PracticeSetModel: Model<IPracticeSet> = mongoose.models.PracticeSet || mongoose.model<IPracticeSet>('PracticeSet', PracticeSetSchema);
+// In development, delete the cached model so schema changes are picked up on hot reload
+if (process.env.NODE_ENV !== 'production' && mongoose.models.PracticeSet) {
+  delete (mongoose.models as Record<string, unknown>).PracticeSet;
+}
+
+const PracticeSetModel: Model<IPracticeSet> = mongoose.model<IPracticeSet>('PracticeSet', PracticeSetSchema);
 
 export default PracticeSetModel;

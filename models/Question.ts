@@ -59,17 +59,17 @@ const QuestionSchema = new Schema<IQuestion>(
     grade: {
       type: Schema.Types.ObjectId,
       ref: 'Grade',
-      required: [true, 'Grade is required'],
+      required: false,
     },
     chapter: {
       type: Schema.Types.ObjectId,
       ref: 'Chapter',
-      required: [true, 'Chapter is required'],
+      required: false,
     },
     topic: {
       type: Schema.Types.ObjectId,
       ref: 'Topic',
-      required: [true, 'Topic is required'],
+      required: false,
     },
     subtopic: {
       type: Schema.Types.ObjectId,
@@ -227,6 +227,10 @@ QuestionSchema.index({ status: 1 });
 QuestionSchema.index({ 'analytics.totalAttempts': -1 });
 QuestionSchema.index({ 'analytics.correctPercentage': -1 });
 
-const QuestionModel: Model<IQuestion> = mongoose.models.Question || mongoose.model<IQuestion>('Question', QuestionSchema);
+if (mongoose.models.Question) {
+  delete mongoose.models.Question;
+}
+
+const QuestionModel: Model<IQuestion> = mongoose.model<IQuestion>('Question', QuestionSchema);
 
 export default QuestionModel;

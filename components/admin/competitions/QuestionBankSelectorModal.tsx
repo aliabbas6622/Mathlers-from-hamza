@@ -113,7 +113,7 @@ export default function QuestionBankSelectorModal({
             onChange={e => setDifficulty(e.target.value)}
             className="px-4 py-2.5 bg-gray-50 rounded-xl border border-gray-200 text-sm text-gray-700 outline-none"
           >
-            <option value="">All Difficulties</option>
+            <option value="">All / Mixed Difficulties</option>
             <option value="easy">Easy</option>
             <option value="medium">Medium</option>
             <option value="hard">Hard</option>

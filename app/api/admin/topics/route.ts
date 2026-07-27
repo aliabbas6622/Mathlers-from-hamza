@@ -57,26 +57,21 @@ export async function POST(request: NextRequest) {
       name: item.name!.trim(), code: item.code?.trim(),
     }));
 
-    if (!body.name?.trim() || !body.code?.trim() || !body.grade || !body.chapter || !subjects.length) {
-      return NextResponse.json({ error: 'Name, code, grade, chapter, and at least one subject are required' }, { status: 400 });
-    }
-
-    const [grade, chapter, subjectDocs] = await Promise.all([
-      GradeModel.exists({ _id: body.grade }),
-      ChapterModel.exists({ _id: body.chapter }),
-      SubjectModel.find({ _id: { $in: subjects } }).select('grades'),
-    ]);
-    if (!grade || !chapter || subjectDocs.length !== subjects.length) {
-      return NextResponse.json({ error: 'One or more curriculum links are invalid' }, { status: 400 });
-    }
-    if (subjectDocs.some((subject) => subject.grades?.length && !subject.grades.some((item) => item.toString() === body.grade))) {
-      return NextResponse.json({ error: 'One or more subjects are not available for this grade' }, { status: 400 });
+    if (!body.name?.trim() || !body.code?.trim() || !subjects.length) {
+      return NextResponse.json({ error: 'Name, code, and at least one subject are required' }, { status: 400 });
     }
 
     const topic = await TopicModel.create({
-      name: body.name.trim(), code: body.code.trim(), description: body.description?.trim(),
-      grade: body.grade, chapter: body.chapter, subject: subjects[0], subjects, subtopics,
-      order: Number(body.order) || 0, isActive: body.isActive ?? true,
+      name: body.name.trim(),
+      code: body.code.trim(),
+      description: body.description?.trim(),
+      grade: body.grade || undefined,
+      chapter: body.chapter || undefined,
+      subject: subjects[0],
+      subjects,
+      subtopics,
+      order: Number(body.order) || 0,
+      isActive: body.isActive ?? true,
     });
     return NextResponse.json({ success: true, data: topic }, { status: 201 });
   } catch (error: unknown) {

@@ -25,6 +25,8 @@ interface SectionData {
   questions: string[];
 }
 
+const GRADES = ['Grade 1','Grade 2','Grade 3','Grade 4','Grade 5','Grade 6','Grade 7','Grade 8','Grade 9','Grade 10','Grade 11','Grade 12'];
+
 export default function EditCompetitionPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const competitionId = resolvedParams.id;
@@ -208,7 +210,7 @@ export default function EditCompetitionPage({ params }: { params: Promise<{ id: 
       {error && <div className="p-4 bg-red-50 text-red-600 rounded-xl border border-red-100">{error}</div>}
 
       <GlassCard className="p-6 md:p-8 space-y-6">
-        <h2 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-3">Basic Info</h2>
+        <h2 className="text-xl font-bold text-gray-900 border-b border-gray-100 pb-3">Basic Info & Eligibility</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Input label="Name" name="name" value={formData.name} onChange={handleChange} required />
           <Input label="Organizer" name="organizer" value={formData.organizer} onChange={handleChange} required />
@@ -218,6 +220,34 @@ export default function EditCompetitionPage({ params }: { params: Promise<{ id: 
             <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
             <textarea name="description" value={formData.description} onChange={handleChange} rows={3}
               className="glass-input w-full px-4 py-3 text-gray-900 rounded-xl border border-gray-200 outline-none" />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-3">Eligible Grades</label>
+          <div className="flex flex-wrap gap-2">
+            {GRADES.map(g => {
+              const isSelected = formData.grades.includes(g);
+              return (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => {
+                    setFormData(prev => ({
+                      ...prev,
+                      grades: prev.grades.includes(g)
+                        ? prev.grades.filter(item => item !== g)
+                        : [...prev.grades, g],
+                    }));
+                  }}
+                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                    isSelected ? 'bg-brand-primary text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {g}
+                </button>
+              );
+            })}
           </div>
         </div>
       </GlassCard>

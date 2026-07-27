@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { BookOpen, Check, Pencil, Plus, Tags, Trash2, X } from 'lucide-react';
+import { BookOpen, Check, Pencil, Plus, Tags, Trash2, X, GraduationCap } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 
 type Subject = { _id: string; name: string; code: string; grades?: Grade[]; description?: string; color?: string; order: number; isActive: boolean };
-type Grade = { _id: string; name: string };
+type Grade = { _id: string; name: string; code: string; order: number; isActive: boolean };
 type Chapter = { _id: string; name: string; grade: { _id: string }; subject: { _id: string } };
 type Subtopic = { _id?: string; name: string; code?: string };
 type Topic = {
@@ -16,7 +16,9 @@ type Topic = {
 };
 
 const emptySubject = { name: '', code: '', grades: [] as string[], description: '', color: '#C1121F', order: 0, isActive: true };
+const emptyGrade = { name: '', code: '', order: 0, isActive: true };
 const emptyTopic = { name: '', code: '', description: '', grade: '', chapter: '', subjects: [] as string[], subtopics: [] as Subtopic[], order: 0, isActive: true };
+
 const api = async (url: string, options?: RequestInit) => {
   const response = await fetch(url, options);
   const data = await response.json();
@@ -40,24 +42,31 @@ function ModalField({ label, htmlFor, helper, children }: { label: string; htmlF
 }
 
 export default function ContentPage() {
-  const [section, setSection] = useState<'subjects' | 'topics'>('subjects');
+  const [section, setSection] = useState<'subjects' | 'grades' | 'topics'>('subjects');
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [grades, setGrades] = useState<Grade[]>([]);
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
+
   const [subjectForm, setSubjectForm] = useState(emptySubject);
+  const [gradeForm, setGradeForm] = useState(emptyGrade);
   const [topicForm, setTopicForm] = useState(emptyTopic);
+
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
+  const [editingGrade, setEditingGrade] = useState<Grade | null>(null);
   const [editingTopic, setEditingTopic] = useState<Topic | null>(null);
+
   const [subjectModal, setSubjectModal] = useState(false);
+  const [gradeModal, setGradeModal] = useState(false);
   const [topicModal, setTopicModal] = useState(false);
+
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
 
   const load = useCallback(async () => {
     try {
       const [subjectData, gradeData, topicData] = await Promise.all([
-        api('/api/admin/subjects'), api('/api/public/grades'), api('/api/admin/topics'),
+        api('/api/admin/subjects'), api('/api/admin/grades'), api('/api/admin/topics'),
       ]);
       setSubjects(subjectData.data);
       setGrades(gradeData.data);
@@ -78,6 +87,13 @@ export default function ContentPage() {
     setSubjectForm(subject ? { name: subject.name, code: subject.code, grades: subject.grades?.map((grade) => grade._id) || [], description: subject.description || '', color: subject.color || '#C1121F', order: subject.order, isActive: subject.isActive } : emptySubject);
     setSubjectModal(true);
   };
+
+  const openGrade = (grade?: Grade) => {
+    setEditingGrade(grade || null);
+    setGradeForm(grade ? { name: grade.name, code: grade.code, order: grade.order || 0, isActive: grade.isActive ?? true } : emptyGrade);
+    setGradeModal(true);
+  };
+
   const openTopic = (topic?: Topic) => {
     setEditingTopic(topic || null);
     const linkedSubjects = topic?.subjects?.map((subject) => subject._id) || (topic ? [idOf(topic.subject)] : []);
@@ -100,6 +116,18 @@ export default function ContentPage() {
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to save subject'); }
     finally { setSaving(false); }
   };
+
+  const saveGrade = async (event: React.FormEvent) => {
+    event.preventDefault(); setSaving(true);
+    try {
+      await api(editingGrade ? `/api/admin/grades/${editingGrade._id}` : '/api/admin/grades', {
+        method: editingGrade ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(gradeForm),
+      });
+      setGradeModal(false); setMessage(`Grade ${editingGrade ? 'updated' : 'created'}.`); await load();
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to save grade'); }
+    finally { setSaving(false); }
+  };
+
   const saveTopic = async (event: React.FormEvent) => {
     event.preventDefault(); setSaving(true);
     try {
@@ -110,17 +138,21 @@ export default function ContentPage() {
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to save topic'); }
     finally { setSaving(false); }
   };
-  const remove = async (type: 'subjects' | 'topics', id: string) => {
-    if (!window.confirm(`Delete this ${type === 'subjects' ? 'subject' : 'topic'}? This only works when it is not used by the question bank.`)) return;
+
+  const remove = async (type: 'subjects' | 'grades' | 'topics', id: string) => {
+    if (!window.confirm(`Delete this ${type.slice(0, -1)}?`)) return;
     try { await api(`/api/admin/${type}/${id}`, { method: 'DELETE' }); setMessage('Deleted.'); await load(); }
     catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to delete item'); }
   };
+
   const toggleSubject = (id: string) => setTopicForm((form) => {
     const subjects = form.subjects.includes(id) ? form.subjects.filter((value) => value !== id) : [...form.subjects, id];
     void loadChapters(form.grade, subjects[0] || '');
     return { ...form, subjects, chapter: '' };
   });
+
   const toggleSubjectGrade = (id: string) => setSubjectForm((form) => ({ ...form, grades: form.grades.includes(id) ? form.grades.filter((value) => value !== id) : [...form.grades, id] }));
+
   const setTopicGrade = (grade: string) => {
     setTopicForm((form) => {
       const available = subjects.filter((subject) => !grade || !subject.grades?.length || subject.grades.some((item) => item._id === grade)).map((subject) => subject._id);
@@ -129,6 +161,7 @@ export default function ContentPage() {
       return { ...form, grade, chapter: '', subjects: linkedSubjects };
     });
   };
+
   const setSubtopic = (index: number, field: keyof Subtopic, value: string) => setTopicForm((form) => ({ ...form, subtopics: form.subtopics.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item) }));
 
   return (
@@ -136,17 +169,27 @@ export default function ContentPage() {
       <div className="flex flex-col gap-5 border-b border-gray-200 pb-7 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-wide text-brand-primary">Question bank structure</p>
-          <h1 className="mt-1 text-3xl font-bold text-gray-950">Subjects & topics</h1>
-          <p className="mt-2 max-w-2xl text-gray-600">Build the taxonomy used when authors create and upload questions.</p>
+          <h1 className="mt-1 text-3xl font-bold text-gray-950">Subjects, Grades & Topics</h1>
+          <p className="mt-2 max-w-2xl text-gray-600">Build the taxonomy used when authors create questions and competitions.</p>
         </div>
-        <button onClick={() => section === 'subjects' ? openSubject() : openTopic()} className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 font-semibold text-white shadow-sm transition hover:bg-brand-dark">
-          <Plus className="h-4 w-4" /> Add {section === 'subjects' ? 'subject' : 'topic'}
+        <button
+          onClick={() => section === 'subjects' ? openSubject() : section === 'grades' ? openGrade() : openTopic()}
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 font-semibold text-white shadow-sm transition hover:bg-brand-dark"
+        >
+          <Plus className="h-4 w-4" /> Add {section === 'subjects' ? 'Subject' : section === 'grades' ? 'Grade' : 'Topic'}
         </button>
       </div>
 
       <div className="flex w-fit gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1">
-        <button onClick={() => setSection('subjects')} className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold ${section === 'subjects' ? 'bg-white text-gray-950 shadow-sm' : 'text-gray-600'}`}><BookOpen className="h-4 w-4" /> Subjects ({subjects.length})</button>
-        <button onClick={() => setSection('topics')} className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold ${section === 'topics' ? 'bg-white text-gray-950 shadow-sm' : 'text-gray-600'}`}><Tags className="h-4 w-4" /> Topics ({topics.length})</button>
+        <button onClick={() => setSection('subjects')} className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold ${section === 'subjects' ? 'bg-white text-gray-950 shadow-sm' : 'text-gray-600'}`}>
+          <BookOpen className="h-4 w-4" /> Subjects ({subjects.length})
+        </button>
+        <button onClick={() => setSection('grades')} className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold ${section === 'grades' ? 'bg-white text-gray-950 shadow-sm' : 'text-gray-600'}`}>
+          <GraduationCap className="h-4 w-4" /> Grades ({grades.length})
+        </button>
+        <button onClick={() => setSection('topics')} className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold ${section === 'topics' ? 'bg-white text-gray-950 shadow-sm' : 'text-gray-600'}`}>
+          <Tags className="h-4 w-4" /> Topics ({topics.length})
+        </button>
       </div>
 
       {message && <div className="flex items-center justify-between rounded-lg border border-brand-primary/20 bg-brand-lighter/40 px-4 py-3 text-sm text-gray-800"><span>{message}</span><button onClick={() => setMessage('')} aria-label="Dismiss message"><X className="h-4 w-4" /></button></div>}
@@ -164,13 +207,30 @@ export default function ContentPage() {
           </div>)}
           {!subjects.length && <div className="px-5 py-16 text-center text-sm text-gray-500">No subjects yet. Add the first one to begin organizing the question bank.</div>}
         </div>
+      ) : section === 'grades' ? (
+        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+          <div className="grid grid-cols-[minmax(180px,1.5fr)_120px_100px_100px_110px] gap-4 border-b border-gray-200 bg-gray-50 px-5 py-3 text-xs font-bold uppercase tracking-wide text-gray-500"><span>Grade Name</span><span>Code</span><span>Order</span><span>Status</span><span className="text-right">Actions</span></div>
+          {grades.map((grade) => (
+            <div key={grade._id} className="grid grid-cols-[minmax(180px,1.5fr)_120px_100px_100px_110px] items-center gap-4 border-b border-gray-100 px-5 py-4 last:border-0">
+              <span className="font-semibold text-gray-950">{grade.name}</span>
+              <span className="font-mono text-sm text-gray-600">{grade.code}</span>
+              <span className="text-sm text-gray-600">{grade.order}</span>
+              <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${grade.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>{grade.isActive ? 'Active' : 'Hidden'}</span>
+              <div className="flex justify-end gap-1">
+                <button onClick={() => openGrade(grade)} className="rounded-md p-2 text-gray-600 hover:bg-gray-100"><Pencil className="h-4 w-4" /></button>
+                <button onClick={() => void remove('grades', grade._id)} className="rounded-md p-2 text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" /></button>
+              </div>
+            </div>
+          ))}
+          {!grades.length && <div className="px-5 py-16 text-center text-sm text-gray-500">No grades yet. Add a grade to start organizing curriculum level limits.</div>}
+        </div>
       ) : (
         <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
           <div className="grid grid-cols-[minmax(180px,1.2fr)_minmax(170px,1fr)_minmax(140px,0.8fr)_minmax(170px,1fr)_100px] gap-4 border-b border-gray-200 bg-gray-50 px-5 py-3 text-xs font-bold uppercase tracking-wide text-gray-500"><span>Topic</span><span>Subjects</span><span>Grade</span><span>Subtopics</span><span className="text-right">Actions</span></div>
           {topics.map((topic) => <div key={topic._id} className="grid grid-cols-[minmax(180px,1.2fr)_minmax(170px,1fr)_minmax(140px,0.8fr)_minmax(170px,1fr)_100px] items-center gap-4 border-b border-gray-100 px-5 py-4 last:border-0">
             <div><p className="font-semibold text-gray-950">{topic.name}</p><p className="mt-1 font-mono text-xs text-gray-500">{topic.code}</p></div>
             <div className="flex flex-wrap gap-1">{(topic.subjects?.length ? topic.subjects : [topic.subject]).map((subject) => <span key={idOf(subject)} className="rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">{typeof subject === 'string' ? 'Subject' : subject.name}</span>)}</div>
-            <span className="text-sm text-gray-600">{typeof topic.grade === 'string' ? 'Grade' : topic.grade.name}</span>
+            <span className="text-sm text-gray-600">{typeof topic.grade === 'string' ? (topic.grade || 'All Grades') : (topic.grade?.name || 'All Grades')}</span>
             <div className="flex flex-wrap gap-1">{topic.subtopics?.length ? topic.subtopics.map((subtopic) => <span key={subtopic._id || subtopic.name} className="rounded-md bg-brand-lighter/60 px-2 py-1 text-xs font-medium text-brand-dark">{subtopic.name}</span>) : <span className="text-sm text-gray-500">None</span>}</div>
             <div className="flex justify-end gap-1"><button onClick={() => openTopic(topic)} className="rounded-md p-2 text-gray-600 hover:bg-gray-100" aria-label={`Edit ${topic.name}`}><Pencil className="h-4 w-4" /></button><button onClick={() => void remove('topics', topic._id)} className="rounded-md p-2 text-red-600 hover:bg-red-50" aria-label={`Delete ${topic.name}`}><Trash2 className="h-4 w-4" /></button></div>
           </div>)}
@@ -178,16 +238,11 @@ export default function ContentPage() {
         </div>
       )}
 
+      {/* Subject Modal */}
       <Modal
         isOpen={subjectModal}
         onClose={() => setSubjectModal(false)}
         title={editingSubject ? 'Edit subject' : 'Add subject'}
-        footer={
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-            <button type="button" onClick={() => setSubjectModal(false)} className={`${modalButtonClass} border border-gray-300 bg-white text-gray-700 hover:bg-gray-50`}>Cancel</button>
-            <button type="submit" form="subject-form" disabled={saving} className={`${modalButtonClass} bg-brand-primary text-white shadow-sm hover:bg-brand-dark`}>{saving ? 'Saving...' : 'Save subject'}</button>
-          </div>
-        }
       >
         <form id="subject-form" onSubmit={saveSubject} className="space-y-5">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -221,57 +276,84 @@ export default function ContentPage() {
           </fieldset>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <ModalField label="Color" htmlFor="subject-color" helper="Used as the subject marker in the admin table.">
-              <div className="mt-2 flex items-center gap-3 rounded-lg border border-gray-300 bg-white px-3 py-2 focus-within:border-brand-primary focus-within:ring-2 focus-within:ring-brand-primary/15" aria-label={`Selected color ${subjectForm.color.toUpperCase()}`}>
-                <input id="subject-color" type="color" value={subjectForm.color} onChange={(event) => setSubjectForm({ ...subjectForm, color: event.target.value })} className="h-8 w-12 shrink-0 cursor-pointer rounded-md border-0 bg-transparent p-0" aria-label="Subject color" />
+            <ModalField label="Color" htmlFor="subject-color">
+              <div className="mt-2 flex items-center gap-3 rounded-lg border border-gray-300 bg-white px-3 py-2">
+                <input id="subject-color" type="color" value={subjectForm.color} onChange={(event) => setSubjectForm({ ...subjectForm, color: event.target.value })} className="h-8 w-12 shrink-0 cursor-pointer rounded-md border-0 bg-transparent p-0" />
                 <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Hex</span>
                 <output htmlFor="subject-color" className="font-mono text-sm text-gray-700">{subjectForm.color.toUpperCase()}</output>
-                <span className="ml-auto h-6 w-6 rounded-full border border-gray-200" style={{ backgroundColor: subjectForm.color }} aria-hidden="true" />
               </div>
             </ModalField>
-            <ModalField label="Display order" htmlFor="subject-order" helper="Lower numbers appear earlier.">
+            <ModalField label="Display order" htmlFor="subject-order">
               <input id="subject-order" type="number" value={subjectForm.order} onChange={(event) => setSubjectForm({ ...subjectForm, order: Number(event.target.value) })} className={inputClass} />
             </ModalField>
           </div>
 
-          <label className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-700">
-            <input type="checkbox" checked={subjectForm.isActive} onChange={(event) => setSubjectForm({ ...subjectForm, isActive: event.target.checked })} className="mt-0.5 h-4 w-4 shrink-0 accent-brand-primary" />
-            <span>
-              <span className="block font-semibold text-gray-800">Available for question authors</span>
-              <span className="mt-0.5 block text-xs leading-5 text-gray-500">Hidden subjects stay in admin records but are not presented as active options.</span>
-            </span>
-          </label>
-
+          <div className={modalFooterClass}>
+            <button type="button" onClick={() => setSubjectModal(false)} className={`${modalButtonClass} border border-gray-300 bg-white text-gray-700 hover:bg-gray-50`}>Cancel</button>
+            <button type="submit" disabled={saving} className={`${modalButtonClass} bg-brand-primary text-white shadow-sm hover:bg-brand-dark`}>{saving ? 'Saving...' : 'Save subject'}</button>
+          </div>
         </form>
       </Modal>
 
+      {/* Grade Modal */}
+      <Modal
+        isOpen={gradeModal}
+        onClose={() => setGradeModal(false)}
+        title={editingGrade ? 'Edit grade' : 'Add grade'}
+      >
+        <form onSubmit={saveGrade} className="space-y-5">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <ModalField label="Grade Name" htmlFor="grade-name" helper="e.g. Grade 1, Grade 7, O Levels">
+              <input id="grade-name" required value={gradeForm.name} onChange={(event) => setGradeForm({ ...gradeForm, name: event.target.value })} className={inputClass} placeholder="Grade 7" />
+            </ModalField>
+            <ModalField label="Code" htmlFor="grade-code" helper="Unique short code, e.g. G7">
+              <input id="grade-code" required value={gradeForm.code} onChange={(event) => setGradeForm({ ...gradeForm, code: event.target.value.toUpperCase() })} className={`${inputClass} font-mono uppercase`} placeholder="G7" />
+            </ModalField>
+          </div>
+
+          <ModalField label="Display Order" htmlFor="grade-order" helper="Lower numbers appear first">
+            <input id="grade-order" type="number" value={gradeForm.order} onChange={(event) => setGradeForm({ ...gradeForm, order: Number(event.target.value) })} className={inputClass} />
+          </ModalField>
+
+          <label className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-700">
+            <input type="checkbox" checked={gradeForm.isActive} onChange={(event) => setGradeForm({ ...gradeForm, isActive: event.target.checked })} className="mt-0.5 h-4 w-4 shrink-0 accent-brand-primary" />
+            <span>
+              <span className="block font-semibold text-gray-800">Active Grade</span>
+              <span className="mt-0.5 block text-xs leading-5 text-gray-500">Available across platform forms and competitions</span>
+            </span>
+          </label>
+
+          <div className={modalFooterClass}>
+            <button type="button" onClick={() => setGradeModal(false)} className={`${modalButtonClass} border border-gray-300 bg-white text-gray-700 hover:bg-gray-50`}>Cancel</button>
+            <button type="submit" disabled={saving} className={`${modalButtonClass} bg-brand-primary text-white shadow-sm hover:bg-brand-dark`}>{saving ? 'Saving...' : 'Save grade'}</button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Topic Modal */}
       <Modal isOpen={topicModal} onClose={() => setTopicModal(false)} title={editingTopic ? 'Edit topic' : 'Add topic'} size="xl">
         <form onSubmit={saveTopic} className="space-y-6">
-          <section className="space-y-4" aria-labelledby="topic-basics-heading">
-            <div>
-              <h3 id="topic-basics-heading" className="text-sm font-bold uppercase tracking-wide text-gray-500">Basics</h3>
-            </div>
+          <section className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
-              <ModalField label="Topic name" htmlFor="topic-name" helper="The label authors see after choosing a chapter.">
+              <ModalField label="Topic name" htmlFor="topic-name">
                 <input id="topic-name" required value={topicForm.name} onChange={(event) => setTopicForm({ ...topicForm, name: event.target.value })} className={inputClass} />
               </ModalField>
-              <ModalField label="Code" htmlFor="topic-code" helper="Keep this stable for reporting and imports.">
+              <ModalField label="Code" htmlFor="topic-code">
                 <input id="topic-code" required value={topicForm.code} onChange={(event) => setTopicForm({ ...topicForm, code: event.target.value })} className={`${inputClass} font-mono`} />
               </ModalField>
             </div>
-            <ModalField label="Description" htmlFor="topic-description" helper="Optional guidance for admins and curriculum reviewers.">
+            <ModalField label="Description" htmlFor="topic-description">
               <textarea id="topic-description" value={topicForm.description} onChange={(event) => setTopicForm({ ...topicForm, description: event.target.value })} className={`${inputClass} min-h-20 resize-y`} rows={2} />
             </ModalField>
           </section>
 
           <fieldset className="rounded-lg border border-gray-200 bg-gray-50/70 p-4">
             <legend className="px-1 text-sm font-semibold text-gray-800">Linked subjects</legend>
-            <p className="mt-1 text-xs leading-5 text-gray-500">Select every subject this topic can be used under. The first selected subject controls the chapter list.</p>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               {subjects.filter((subject) => subject.isActive && (!topicForm.grade || !subject.grades?.length || subject.grades.some((grade) => grade._id === topicForm.grade))).map((subject) => {
                 const selected = topicForm.subjects.includes(subject._id);
                 return (
-                  <label key={subject._id} className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-sm font-medium transition focus-within:ring-2 focus-within:ring-brand-primary/20 ${selected ? 'border-brand-primary bg-brand-lighter/40 text-gray-950' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'}`}>
+                  <label key={subject._id} className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-sm font-medium transition ${selected ? 'border-brand-primary bg-brand-lighter/40 text-gray-950' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'}`}>
                     <input type="checkbox" checked={selected} onChange={() => toggleSubject(subject._id)} className="sr-only" />
                     <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border ${selected ? 'border-brand-primary bg-brand-primary text-white' : 'border-gray-300 bg-white'}`}>{selected && <Check className="h-3.5 w-3.5" />}</span>
                     <span className="min-w-0 truncate">{subject.name}</span>
@@ -279,58 +361,36 @@ export default function ContentPage() {
                 );
               })}
             </div>
-            {!subjects.some((subject) => subject.isActive && (!topicForm.grade || !subject.grades?.length || subject.grades.some((grade) => grade._id === topicForm.grade))) && <p className="mt-3 rounded-md bg-white px-3 py-2 text-sm text-gray-500">No active subjects are available for this grade.</p>}
           </fieldset>
 
-          <section className="grid gap-4 sm:grid-cols-2" aria-label="Placement">
-            <ModalField label="Grade" htmlFor="topic-grade" helper="Choose the grade before selecting a chapter.">
-              <select id="topic-grade" required value={topicForm.grade} onChange={(event) => setTopicGrade(event.target.value)} className={inputClass}>
-                <option value="">Select grade</option>
+          <section className="grid gap-4 sm:grid-cols-1">
+            <ModalField label="Grade (Optional)" htmlFor="topic-grade" helper="Select a grade or leave as All Grades for universal topics">
+              <select id="topic-grade" value={topicForm.grade} onChange={(event) => setTopicGrade(event.target.value)} className={inputClass}>
+                <option value="">All Grades (Optional)</option>
                 {grades.map((grade) => <option key={grade._id} value={grade._id}>{grade.name}</option>)}
-              </select>
-            </ModalField>
-            <ModalField label="Chapter" htmlFor="topic-chapter" helper={!topicForm.grade || !topicForm.subjects.length ? 'Select a grade and subject first.' : 'Choose where this topic appears.'}>
-              <select id="topic-chapter" required value={topicForm.chapter} onChange={(event) => setTopicForm({ ...topicForm, chapter: event.target.value })} disabled={!topicForm.grade || !topicForm.subjects.length} className={inputClass}>
-                <option value="">Select chapter</option>
-                {chapters.map((chapter) => <option key={chapter._id} value={chapter._id}>{chapter.name}</option>)}
               </select>
             </ModalField>
           </section>
 
-          <section className="rounded-lg border border-gray-200 p-4" aria-labelledby="subtopics-heading">
+          <section className="rounded-lg border border-gray-200 p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <h3 id="subtopics-heading" className="text-sm font-semibold text-gray-800">Subtopics</h3>
-                <p className="mt-1 text-xs leading-5 text-gray-500">These are available when authors select this topic.</p>
+                <h3 className="text-sm font-semibold text-gray-800">Subtopics</h3>
               </div>
-              <button type="button" onClick={() => setTopicForm({ ...topicForm, subtopics: [...topicForm.subtopics, { name: '', code: '' }] })} className="inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-primary/20 sm:w-auto">
+              <button type="button" onClick={() => setTopicForm({ ...topicForm, subtopics: [...topicForm.subtopics, { name: '', code: '' }] })} className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
                 <Plus className="h-4 w-4" /> Add subtopic
               </button>
             </div>
             <div className="mt-4 space-y-2">
               {topicForm.subtopics.map((subtopic, index) => (
                 <div key={subtopic._id || index} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_180px_44px]">
-                  <input required aria-label={`Subtopic ${index + 1} name`} value={subtopic.name} onChange={(event) => setSubtopic(index, 'name', event.target.value)} className={inlineInputClass} placeholder="Subtopic name" />
-                  <input aria-label={`Subtopic ${index + 1} code`} value={subtopic.code || ''} onChange={(event) => setSubtopic(index, 'code', event.target.value)} className={`${inlineInputClass} font-mono`} placeholder="Code" />
-                  <button type="button" onClick={() => setTopicForm({ ...topicForm, subtopics: topicForm.subtopics.filter((_, itemIndex) => itemIndex !== index) })} className="inline-flex h-11 w-full items-center justify-center rounded-lg text-red-600 transition hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500/20 sm:w-11" aria-label={`Remove subtopic ${index + 1}`}><Trash2 className="h-4 w-4" /></button>
+                  <input required value={subtopic.name} onChange={(event) => setSubtopic(index, 'name', event.target.value)} className={inlineInputClass} placeholder="Subtopic name" />
+                  <input value={subtopic.code || ''} onChange={(event) => setSubtopic(index, 'code', event.target.value)} className={`${inlineInputClass} font-mono`} placeholder="Code" />
+                  <button type="button" onClick={() => setTopicForm({ ...topicForm, subtopics: topicForm.subtopics.filter((_, itemIndex) => itemIndex !== index) })} className="inline-flex h-11 items-center justify-center rounded-lg text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" /></button>
                 </div>
               ))}
-              {!topicForm.subtopics.length && <p className="rounded-md bg-gray-50 px-3 py-3 text-sm text-gray-500">No subtopics added.</p>}
             </div>
           </section>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <ModalField label="Display order" htmlFor="topic-order" helper="Lower numbers appear earlier.">
-              <input id="topic-order" type="number" value={topicForm.order} onChange={(event) => setTopicForm({ ...topicForm, order: Number(event.target.value) })} className={inputClass} />
-            </ModalField>
-            <label className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-700 sm:mt-7">
-              <input type="checkbox" checked={topicForm.isActive} onChange={(event) => setTopicForm({ ...topicForm, isActive: event.target.checked })} className="mt-0.5 h-4 w-4 shrink-0 accent-brand-primary" />
-              <span>
-                <span className="block font-semibold text-gray-800">Available for question authors</span>
-                <span className="mt-0.5 block text-xs leading-5 text-gray-500">Hidden topics remain editable in admin.</span>
-              </span>
-            </label>
-          </div>
 
           <div className={modalFooterClass}>
             <button type="button" onClick={() => setTopicModal(false)} className={`${modalButtonClass} border border-gray-300 bg-white text-gray-700 hover:bg-gray-50`}>Cancel</button>

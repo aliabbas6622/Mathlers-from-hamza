@@ -252,6 +252,7 @@ export default function CreateCompetitionPage() {
                 <option value="intermediate">Intermediate</option>
                 <option value="advanced">Advanced</option>
                 <option value="expert">Expert</option>
+                <option value="mixed">🔀 Mixed / All Levels</option>
               </select>
             </div>
             <div className="w-full md:col-span-2">

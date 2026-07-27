@@ -10,9 +10,9 @@ import { AlertCircle, BarChart3, CheckCircle2, Download, Edit, FileSpreadsheet, 
 
 interface QuestionFormData {
   subject: string;
-  grade: string;
-  chapter: string;
-  topic: string;
+  grade?: string;
+  chapter?: string;
+  topic?: string;
   subtopic?: string;
   question: string;
   options: {
@@ -32,9 +32,9 @@ interface QuestionFormData {
 interface Question {
   _id: string;
   subject: { _id: string; name: string };
-  grade: { _id: string; name: string };
-  chapter: { _id: string; name: string };
-  topic: { _id: string; name: string; subtopics?: Array<{ _id: string; name: string }> };
+  grade?: { _id: string; name: string };
+  chapter?: { _id: string; name: string };
+  topic?: { _id: string; name: string; subtopics?: Array<{ _id: string; name: string }> };
   subtopic?: string;
   question: string;
   options: {
@@ -205,7 +205,10 @@ export default function QuestionsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedGrade, setSelectedGrade] = useState('');
+  const [selectedTopic, setSelectedTopic] = useState('');
+  const [selectedSubtopic, setSelectedSubtopic] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState('');
+  const [topics, setTopics] = useState<any[]>([]);
   const [bulkUploading, setBulkUploading] = useState(false);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [uploadPreview, setUploadPreview] = useState<UploadPreview | null>(null);
@@ -213,6 +216,34 @@ export default function QuestionsPage() {
   const [notice, setNotice] = useState('');
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 });
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const fetchTopics = useCallback(async (subjectId: string, gradeId?: string) => {
+    try {
+      let url = `/api/admin/topics?subject=${subjectId}`;
+      if (gradeId) url += `&grade=${gradeId}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Unable to load topics.');
+      const data = await res.json();
+      if (data.success && data.data) {
+        setTopics(data.data);
+      } else {
+        setTopics([]);
+      }
+    } catch (error) {
+      console.error('Error fetching topics:', error);
+      setTopics([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedSubject) {
+      void fetchTopics(selectedSubject, selectedGrade);
+    } else {
+      setTopics([]);
+      setSelectedTopic('');
+      setSelectedSubtopic('');
+    }
+  }, [selectedSubject, selectedGrade, fetchTopics]);
 
   const fetchQuestions = useCallback(async (page = 1) => {
     try {
@@ -223,6 +254,8 @@ export default function QuestionsPage() {
         ...(searchTerm && { search: searchTerm }),
         ...(selectedSubject && { subject: selectedSubject }),
         ...(selectedGrade && { grade: selectedGrade }),
+        ...(selectedTopic && { topic: selectedTopic }),
+        ...(selectedSubtopic && { subtopic: selectedSubtopic }),
         ...(selectedDifficulty && { difficulty: selectedDifficulty })
       });
 
@@ -238,7 +271,7 @@ export default function QuestionsPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, selectedDifficulty, selectedGrade, selectedSubject]);
+  }, [searchTerm, selectedDifficulty, selectedGrade, selectedSubject, selectedTopic, selectedSubtopic]);
 
   const fetchSubjects = useCallback(async () => {
     try {
@@ -495,7 +528,11 @@ export default function QuestionsPage() {
           </div>
           <select 
             value={selectedSubject}
-            onChange={(e) => setSelectedSubject(e.target.value)}
+            onChange={(e) => {
+              setSelectedSubject(e.target.value);
+              setSelectedTopic('');
+              setSelectedSubtopic('');
+            }}
             className="px-4 py-3 rounded-xl border border-gray-200 focus:border-brand-primary outline-none"
           >
             <option value="">All Subjects</option>
@@ -507,7 +544,11 @@ export default function QuestionsPage() {
           </select>
           <select
             value={selectedGrade}
-            onChange={(e) => setSelectedGrade(e.target.value)}
+            onChange={(e) => {
+              setSelectedGrade(e.target.value);
+              setSelectedTopic('');
+              setSelectedSubtopic('');
+            }}
             className="px-4 py-3 rounded-xl border border-gray-200 focus:border-brand-primary outline-none"
           >
             <option value="">All Student Grades</option>
@@ -517,6 +558,40 @@ export default function QuestionsPage() {
               </option>
             ))}
           </select>
+
+          {selectedSubject && topics.length > 0 && (
+            <select
+              value={selectedTopic}
+              onChange={(e) => {
+                setSelectedTopic(e.target.value);
+                setSelectedSubtopic('');
+              }}
+              className="px-4 py-3 rounded-xl border border-gray-200 focus:border-brand-primary outline-none"
+            >
+              <option value="">All Topics</option>
+              {topics.map((topic) => (
+                <option key={topic._id} value={topic._id}>
+                  {topic.name}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {selectedTopic && topics.find((t) => t._id === selectedTopic)?.subtopics?.length > 0 && (
+            <select
+              value={selectedSubtopic}
+              onChange={(e) => setSelectedSubtopic(e.target.value)}
+              className="px-4 py-3 rounded-xl border border-gray-200 focus:border-brand-primary outline-none"
+            >
+              <option value="">All Subtopics</option>
+              {topics.find((t) => t._id === selectedTopic)?.subtopics.map((sub: any) => (
+                <option key={sub._id} value={sub._id}>
+                  {sub.name}
+                </option>
+              ))}
+            </select>
+          )}
+
           <select 
             value={selectedDifficulty}
             onChange={(e) => setSelectedDifficulty(e.target.value)}

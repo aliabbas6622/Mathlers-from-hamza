@@ -8,9 +8,9 @@ import { MathRenderer } from '@/components/math';
 
 interface QuestionFormData {
   subject: string;
-  grade: string;
-  chapter: string;
-  topic: string;
+  grade?: string;
+  chapter?: string;
+  topic?: string;
   subtopic?: string;
   question: string;
   options: {
@@ -37,12 +37,7 @@ interface Subject {
 interface Grade {
   _id: string;
   name: string;
-  level: string;
-}
-
-interface Chapter {
-  _id: string;
-  name: string;
+  level?: string;
 }
 
 interface Topic {
@@ -74,7 +69,6 @@ export default function QuestionForm({
   subjects,
   grades
 }: QuestionFormProps) {
-  const [chapters, setChapters] = useState<Chapter[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [curriculumError, setCurriculumError] = useState('');
@@ -108,34 +102,17 @@ export default function QuestionForm({
 
   const watchedGrade = watch('grade');
   const watchedSubject = watch('subject');
-  const watchedChapter = watch('chapter');
   const watchedTopic = watch('topic');
   const watchedQuestion = watch('question');
   const watchedOptions = watch('options');
   const watchedExplanation = watch('explanation');
 
-  const fetchChapters = useCallback(async (gradeId: string, subjectId: string) => {
+  const fetchTopics = useCallback(async (subjectId: string, gradeId?: string) => {
     try {
       setCurriculumError('');
-      const res = await fetch(`/api/admin/chapters?grade=${gradeId}&subject=${subjectId}`);
-      if (!res.ok) throw new Error('Unable to load chapters. Try again.');
-      const data = await res.json() as LookupResponse<Chapter>;
-      if (data.success && data.data) {
-        setChapters(data.data);
-      } else {
-        throw new Error(data.error || 'Unable to load chapters. Try again.');
-      }
-    } catch (error) {
-      console.error('Error fetching chapters:', error);
-      setChapters([]);
-      setCurriculumError(error instanceof Error ? error.message : 'Unable to load chapters. Try again.');
-    }
-  }, []);
-
-  const fetchTopics = useCallback(async (chapterId: string, subjectId: string) => {
-    try {
-      setCurriculumError('');
-      const res = await fetch(`/api/admin/topics?chapter=${chapterId}&subject=${subjectId}`);
+      let url = `/api/admin/topics?subject=${subjectId}`;
+      if (gradeId) url += `&grade=${gradeId}`;
+      const res = await fetch(url);
       if (!res.ok) throw new Error('Unable to load topics. Try again.');
       const data = await res.json() as LookupResponse<Topic>;
       if (data.success && data.data) {
@@ -157,20 +134,12 @@ export default function QuestionForm({
   }, [defaultValues, initialData, isOpen, reset]);
 
   useEffect(() => {
-    if (watchedGrade && watchedSubject) {
-      fetchChapters(watchedGrade, watchedSubject);
-    } else {
-      setChapters([]);
-    }
-  }, [fetchChapters, watchedGrade, watchedSubject]);
-
-  useEffect(() => {
-    if (watchedChapter && watchedSubject) {
-      fetchTopics(watchedChapter, watchedSubject);
+    if (watchedSubject) {
+      fetchTopics(watchedSubject, watchedGrade);
     } else {
       setTopics([]);
     }
-  }, [fetchTopics, watchedChapter, watchedSubject]);
+  }, [fetchTopics, watchedSubject, watchedGrade]);
 
   const selectedTopic = topics.find((topic) => topic._id === watchedTopic);
   const visibleSubjects = subjects.filter((subject) => !watchedGrade || !subject.grades?.length || subject.grades.some((grade) => grade._id === watchedGrade));
@@ -178,7 +147,6 @@ export default function QuestionForm({
   useEffect(() => {
     if (watchedSubject && !visibleSubjects.some((subject) => subject._id === watchedSubject)) {
       setValue('subject', '');
-      setValue('chapter', '');
       setValue('topic', '');
       setValue('subtopic', '');
     }
@@ -205,8 +173,9 @@ export default function QuestionForm({
         <div className="border-y border-gray-200 py-4 text-sm text-gray-600">
           Use standard text or LaTeX in any question, option, or explanation. Inline math uses <code className="rounded bg-gray-100 px-1.5 py-0.5">$x^2$</code>; display math uses <code className="rounded bg-gray-100 px-1.5 py-0.5">$$x^2$$</code>.
         </div>
-        {/* Subject and Grade Selection */}
-        <div className="grid grid-cols-2 gap-4">
+
+        {/* Subject, Grade, and Topic Selection */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Subject *
@@ -215,7 +184,6 @@ export default function QuestionForm({
               {...register('subject', {
                 required: 'Subject is required',
                 onChange: () => {
-                  setValue('chapter', '');
                   setValue('topic', '');
                   setValue('subtopic', '');
                 }
@@ -236,101 +204,61 @@ export default function QuestionForm({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Student Grade *
+              Student Grade (optional)
             </label>
             <select
               {...register('grade', {
-                required: 'Grade is required',
                 onChange: () => {
-                  setValue('chapter', '');
                   setValue('topic', '');
                   setValue('subtopic', '');
                 }
               })}
               className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none"
             >
-              <option value="">Select Student Grade</option>
+              <option value="">All / Any Grade (optional)</option>
               {grades.map((grade) => (
                 <option key={grade._id} value={grade._id}>
                   {grade.name}
                 </option>
               ))}
             </select>
-            {errors.grade && (
-              <p className="text-red-500 text-sm mt-1">{errors.grade.message}</p>
-            )}
-          </div>
-        </div>
-
-        {/* Chapter and Topic Selection */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Chapter *
-            </label>
-            <select
-              {...register('chapter', {
-                required: 'Chapter is required',
-                onChange: () => {
-                  setValue('topic', '');
-                  setValue('subtopic', '');
-                }
-              })}
-              disabled={!watchedGrade || !watchedSubject}
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none disabled:bg-gray-100"
-            >
-              <option value="">Select Chapter</option>
-              {chapters.map((chapter) => (
-                <option key={chapter._id} value={chapter._id}>
-                  {chapter.name}
-                </option>
-              ))}
-            </select>
-            {errors.chapter && (
-              <p className="text-red-500 text-sm mt-1">{errors.chapter.message}</p>
-            )}
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Topic *
+              Topic (optional)
             </label>
             <select
               {...register('topic', {
-                required: 'Topic is required',
                 onChange: () => setValue('subtopic', '')
               })}
-              disabled={!watchedChapter}
+              disabled={!watchedSubject}
               className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none disabled:bg-gray-100"
             >
-              <option value="">Select Topic</option>
+              <option value="">Select Topic (optional)</option>
               {topics.map((topic) => (
                 <option key={topic._id} value={topic._id}>
                   {topic.name}
                 </option>
               ))}
             </select>
-            {errors.topic && (
-              <p className="text-red-500 text-sm mt-1">{errors.topic.message}</p>
-            )}
           </div>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Subtopic {selectedTopic?.subtopics?.length ? '*' : '(optional)'}
+            Subtopic {selectedTopic?.subtopics?.length ? '(optional)' : '(optional)'}
           </label>
           <select
-            {...register('subtopic', { required: selectedTopic?.subtopics?.length ? 'Subtopic is required' : false })}
+            {...register('subtopic')}
             disabled={!watchedTopic || !selectedTopic?.subtopics?.length}
             className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none disabled:bg-gray-100"
           >
-            <option value="">{selectedTopic?.subtopics?.length ? 'Select Subtopic' : 'No subtopics configured'}</option>
+            <option value="">{selectedTopic?.subtopics?.length ? 'Select Subtopic (optional)' : 'No subtopics configured'}</option>
             {selectedTopic?.subtopics?.map((subtopic) => (
               <option key={subtopic._id} value={subtopic._id}>{subtopic.name}</option>
             ))}
           </select>
-          {errors.subtopic && <p className="text-red-500 text-sm mt-1">{errors.subtopic.message}</p>}
         </div>
 
         {curriculumError && <div role="alert" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">{curriculumError}</div>}

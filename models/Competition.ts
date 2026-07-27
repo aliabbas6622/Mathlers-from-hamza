@@ -31,6 +31,8 @@ export enum DifficultyLevel {
   INTERMEDIATE = 'intermediate',
   ADVANCED = 'advanced',
   EXPERT = 'expert',
+  MIXED = 'mixed',
+  ALL = 'all',
 }
 
 // ─── Section Interface ───────────────────────────────────────────────────────

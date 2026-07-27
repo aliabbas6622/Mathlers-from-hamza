@@ -32,12 +32,12 @@ const TopicSchema = new Schema<ITopic>(
     grade: {
       type: Schema.Types.ObjectId,
       ref: 'Grade',
-      required: [true, 'Grade is required'],
+      required: false,
     },
     chapter: {
       type: Schema.Types.ObjectId,
       ref: 'Chapter',
-      required: [true, 'Chapter is required'],
+      required: false,
     },
     name: {
       type: String,
@@ -75,6 +75,10 @@ TopicSchema.index({ subject: 1, grade: 1, chapter: 1, code: 1 });
 TopicSchema.index({ order: 1 });
 TopicSchema.index({ isActive: 1 });
 
-const TopicModel: Model<ITopic> = mongoose.models.Topic || mongoose.model<ITopic>('Topic', TopicSchema);
+if (mongoose.models.Topic) {
+  delete mongoose.models.Topic;
+}
+
+const TopicModel: Model<ITopic> = mongoose.model<ITopic>('Topic', TopicSchema);
 
 export default TopicModel;
