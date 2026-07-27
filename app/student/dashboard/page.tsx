@@ -10,6 +10,7 @@ import GlassCard from '@/components/ui/GlassCard';
 import StatCard from '@/components/ui/StatCard';
 import PrimaryButton from '@/components/ui/PrimaryButton';
 import { Flame, Trophy, Target, TrendingUp, Bell } from 'lucide-react';
+import { isValidObjectId } from '@/lib/utils/isValidObjectId';
 
 export default async function StudentDashboard() {
   const session = await auth();
@@ -20,8 +21,15 @@ export default async function StudentDashboard() {
 
   await connectDB();
 
-  const results = await ResultModel.find({ student: session.user.id }).sort({ completedAt: -1 });
-  const enrollments = await EnrollmentModel.find({ student: session.user.id });
+  const userId = session.user.id;
+  const hasValidId = isValidObjectId(userId);
+
+  const results = hasValidId 
+    ? await ResultModel.find({ student: userId }).sort({ completedAt: -1 }) 
+    : [];
+  const enrollments = hasValidId 
+    ? await EnrollmentModel.find({ student: userId }) 
+    : [];
   const upcomingCompetitions = await CompetitionModel.find({
     status: CompetitionStatus.REGISTRATION_OPEN,
     'competition.startDate': { $gte: new Date() },

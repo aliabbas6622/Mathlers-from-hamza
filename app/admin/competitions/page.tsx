@@ -6,6 +6,8 @@ import GlassCard from '@/components/ui/GlassCard';
 import PrimaryButton from '@/components/ui/PrimaryButton';
 import { Search, Filter, Plus, Edit, Trash2, Trophy } from 'lucide-react';
 
+import Link from 'next/link';
+
 export default async function CompetitionsPage() {
   const session = await auth();
   
@@ -25,10 +27,12 @@ export default async function CompetitionsPage() {
           <h1 className="text-3xl font-bold text-gray-900">Competitions</h1>
           <p className="text-gray-600">Manage all competitions and events</p>
         </div>
-        <PrimaryButton>
-          <Plus className="w-4 h-4 mr-2" />
-          Create Competition
-        </PrimaryButton>
+        <Link href="/admin/competitions/create">
+          <PrimaryButton>
+            <Plus className="w-4 h-4 mr-2" />
+            Create Competition
+          </PrimaryButton>
+        </Link>
       </div>
 
       {/* Search and Filters */}
@@ -73,20 +77,22 @@ export default async function CompetitionsPage() {
               {competitions.map((comp: any) => (
                 <tr key={comp._id.toString()} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-4 px-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-brand-lighter rounded-lg flex items-center justify-center">
-                        <Trophy className="w-5 h-5 text-brand-primary" />
+                    <Link href={`/admin/competitions/${comp._id.toString()}`}>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-brand-lighter rounded-lg flex items-center justify-center">
+                          <Trophy className="w-5 h-5 text-brand-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900 hover:text-brand-primary transition-colors">{comp.name}</p>
+                          <p className="text-sm text-gray-500 truncate max-w-xs">{comp.description}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{comp.name}</p>
-                        <p className="text-sm text-gray-500 truncate max-w-xs">{comp.description}</p>
-                      </div>
-                    </div>
+                    </Link>
                   </td>
                   <td className="py-4 px-4 text-gray-600">
-                    {new Date(comp.startDate).toLocaleDateString()}
+                    {comp.competition?.startDate ? new Date(comp.competition.startDate).toLocaleDateString() : 'N/A'}
                   </td>
-                  <td className="py-4 px-4 text-gray-600">{comp.participants || 0}</td>
+                  <td className="py-4 px-4 text-gray-600">{comp.analytics?.registrations || 0} / {comp.registration?.maxParticipants || 0}</td>
                   <td className="py-4 px-4 text-gray-600">{comp.rounds?.length || 0}</td>
                   <td className="py-4 px-4">
                     <span className={`px-3 py-1 rounded-full text-sm font-medium ${
@@ -99,9 +105,11 @@ export default async function CompetitionsPage() {
                   </td>
                   <td className="py-4 px-4">
                     <div className="flex gap-2">
-                      <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                        <Edit className="w-4 h-4 text-gray-600" />
-                      </button>
+                      <Link href={`/admin/competitions/${comp._id.toString()}`}>
+                        <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                          <Edit className="w-4 h-4 text-gray-600" />
+                        </button>
+                      </Link>
                       <button className="p-2 hover:bg-red-50 rounded-lg transition-colors">
                         <Trash2 className="w-4 h-4 text-red-600" />
                       </button>
