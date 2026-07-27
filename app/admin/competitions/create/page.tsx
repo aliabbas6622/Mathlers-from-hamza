@@ -100,8 +100,14 @@ export default function CreateCompetitionPage() {
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to create competition');
+        let errorMsg = 'Failed to create competition';
+        try {
+          const data = await response.json();
+          if (data.error) errorMsg = data.error;
+        } catch {
+          errorMsg = `Server error (${response.status}): The server encountered an error and could not process the request.`;
+        }
+        throw new Error(errorMsg);
       }
 
       router.push('/admin/competitions');

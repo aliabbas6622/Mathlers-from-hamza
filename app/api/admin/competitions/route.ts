@@ -24,8 +24,8 @@ const competitionSchema = z.object({
   contact: z.string().min(5),
   rulebook: z.string().min(10),
   grades: z.array(z.string()).min(1),
-  minAge: z.coerce.number().min(1).optional().or(z.literal('')),
-  maxAge: z.coerce.number().min(1).optional().or(z.literal('')),
+  minAge: z.union([z.literal(''), z.coerce.number().min(1)]).optional(),
+  maxAge: z.union([z.literal(''), z.coerce.number().min(1)]).optional(),
   registrationStartDate: z.string().min(1),
   registrationEndDate: z.string().min(1),
   competitionStartDate: z.string().min(1),
@@ -75,16 +75,21 @@ export async function POST(request: NextRequest) {
         startDate: new Date(round.startDate),
         endDate: new Date(round.endDate),
       })),
-      createdBy: session.user.id,
+      createdBy: session.user.id.startsWith('bypass-') 
+        ? '000000000000000000000000' 
+        : session.user.id,
     });
 
     return NextResponse.json({ id: competition._id.toString() }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.issues[0].message }, { status: 400 });
+      console.error('Validation error:', error.issues);
+      return NextResponse.json({ error: error.issues.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ') }, { status: 400 });
     }
 
     console.error('Create competition error:', error);
-    return NextResponse.json({ error: 'Failed to create competition' }, { status: 500 });
+    return NextResponse.json({ 
+      error: error instanceof Error ? error.message : 'Failed to create competition' 
+    }, { status: 500 });
   }
 }
