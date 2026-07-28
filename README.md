@@ -43,6 +43,7 @@ Required values:
 MONGODB_URI=
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
 CLERK_SECRET_KEY=
+SUPER_ADMIN_EMAILS=
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_APP_NAME=Mathlers
 ```
@@ -55,7 +56,7 @@ $env:SUPER_ADMIN_NAME='Platform Developer'
 node scripts/bootstrap-super-admin.js
 ```
 
-The developer can then sign in and use `/admin/developer` to create schools and provision school admins, teachers, and students. Public registration intentionally redirects to `/request-access`.
+For Vercel, add the same verified Clerk email to `SUPER_ADMIN_EMAILS` in Production environment variables. On its first verified sign-in, Mathlers safely creates the developer profile and routes it to `/admin/developer`. The developer can then create schools and provision school admins, teachers, and students. Public registration intentionally redirects to `/request-access`.
 
 ## Development
 

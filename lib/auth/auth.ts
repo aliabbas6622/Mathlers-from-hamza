@@ -1,10 +1,18 @@
 import { auth as clerkAuth, currentUser } from '@clerk/nextjs/server';
+import { randomBytes } from 'crypto';
 import connectDB from '@/lib/db/mongodb';
 import UserModel, { UserRole } from '@/models/User';
 
 export type MathlersSession = {
   user: { id: string; email: string; name: string; role: UserRole; playerId: string };
 };
+
+const configuredSuperAdminEmails = () => new Set(
+  (process.env.SUPER_ADMIN_EMAILS || '')
+    .split(',')
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean),
+);
 
 /** Resolves Clerk identities to the Mongo ObjectIds used by Mathlers records. */
 export async function auth(): Promise<MathlersSession | null> {
@@ -26,6 +34,26 @@ export async function auth(): Promise<MathlersSession | null> {
       existing.isEmailVerified = true;
       await existing.save();
       user = existing;
+    } else if (configuredSuperAdminEmails().has(email)) {
+      try {
+        user = await UserModel.create({
+          clerkId: userId,
+          fullName: clerkUser.fullName?.trim() || email.split('@')[0],
+          email,
+          playerId: `DEV-${randomBytes(5).toString('hex').toUpperCase()}`,
+          role: UserRole.SUPER_ADMIN,
+          isEmailVerified: true,
+          profileComplete: true,
+        });
+      } catch (error: unknown) {
+        if (!(error && typeof error === 'object' && 'code' in error && error.code === 11000)) throw error;
+        const racedUser = await UserModel.findOne({ email });
+        if (!racedUser || (racedUser.clerkId && racedUser.clerkId !== userId)) return null;
+        racedUser.clerkId = userId;
+        racedUser.isEmailVerified = true;
+        await racedUser.save();
+        user = racedUser;
+      }
     } else return null;
   }
 
