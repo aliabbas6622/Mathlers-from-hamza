@@ -1,7 +1,7 @@
 import { auth } from '@/lib/auth/auth';
 import { redirect } from 'next/navigation';
 import connectDB from '@/lib/db/mongodb';
-import UserModel from '@/models/User';
+import UserModel, { UserRole } from '@/models/User';
 import LeaderboardClient from './LeaderboardClient';
 
 export default async function LeaderboardPage() {
@@ -18,7 +18,7 @@ export default async function LeaderboardPage() {
   const hasSchool = !!currentUser?.school;
 
   // 1. Fetch National Data
-  const topNational = await UserModel.find({ isActive: true, role: 'student' })
+  const topNational = await UserModel.find({ isActive: true, role: UserRole.STUDENT })
     .sort({ points: -1 })
     .limit(20)
     .lean();
@@ -31,10 +31,10 @@ export default async function LeaderboardPage() {
   }));
 
   let userNationalRank = null;
-  if (currentUser && currentUser.role === 'student') {
+  if (currentUser && currentUser.role === UserRole.STUDENT) {
     const studentsWithHigherPoints = await UserModel.countDocuments({
       isActive: true,
-      role: 'student',
+      role: UserRole.STUDENT,
       points: { $gt: currentUser.points || 0 },
     });
     userNationalRank = studentsWithHigherPoints + 1;
@@ -47,7 +47,7 @@ export default async function LeaderboardPage() {
   if (hasSchool) {
     const topSchool = await UserModel.find({ 
       isActive: true, 
-      role: 'student',
+      role: UserRole.STUDENT,
       school: currentUser.school
     })
       .sort({ points: -1 })
@@ -61,10 +61,10 @@ export default async function LeaderboardPage() {
       score: student.points || 0,
     }));
 
-    if (currentUser && currentUser.role === 'student') {
+    if (currentUser && currentUser.role === UserRole.STUDENT) {
       const schoolStudentsWithHigherPoints = await UserModel.countDocuments({
         isActive: true,
-        role: 'student',
+        role: UserRole.STUDENT,
         school: currentUser.school,
         points: { $gt: currentUser.points || 0 },
       });

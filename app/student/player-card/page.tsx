@@ -1,7 +1,7 @@
 import { auth } from '@/lib/auth/auth';
 import { redirect } from 'next/navigation';
 import connectDB from '@/lib/db/mongodb';
-import UserModel from '@/models/User';
+import UserModel, { UserRole } from '@/models/User';
 import ResultModel from '@/models/Result';
 import GlassCard from '@/components/ui/GlassCard';
 import PrimaryButton from '@/components/ui/PrimaryButton';
@@ -25,10 +25,10 @@ export default async function PlayerCardPage() {
   let nationalRank = null;
   let schoolRank = null;
 
-  if (user && user.role === 'student') {
+  if (user && user.role === UserRole.STUDENT) {
     const studentsWithHigherPoints = await UserModel.countDocuments({
       isActive: true,
-      role: 'student',
+      role: UserRole.STUDENT,
       points: { $gt: totalPoints },
     });
     nationalRank = studentsWithHigherPoints + 1;
@@ -36,7 +36,7 @@ export default async function PlayerCardPage() {
     if (hasSchool) {
       const schoolStudentsWithHigherPoints = await UserModel.countDocuments({
         isActive: true,
-        role: 'student',
+        role: UserRole.STUDENT,
         school: user.school,
         points: { $gt: totalPoints },
       });
