@@ -79,6 +79,6 @@ if (process.env.NODE_ENV !== 'production' && mongoose.models.Topic) {
   delete mongoose.models.Topic;
 }
 
-const TopicModel: Model<ITopic> = mongoose.model<ITopic>('Topic', TopicSchema);
+const TopicModel: Model<ITopic> = (mongoose.models.Topic as Model<ITopic>) || mongoose.model<ITopic>('Topic', TopicSchema);
 
 export default TopicModel;

@@ -231,6 +231,6 @@ if (process.env.NODE_ENV !== 'production' && mongoose.models.Question) {
   delete mongoose.models.Question;
 }
 
-const QuestionModel: Model<IQuestion> = mongoose.model<IQuestion>('Question', QuestionSchema);
+const QuestionModel: Model<IQuestion> = (mongoose.models.Question as Model<IQuestion>) || mongoose.model<IQuestion>('Question', QuestionSchema);
 
 export default QuestionModel;

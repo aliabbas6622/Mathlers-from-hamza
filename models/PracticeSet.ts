@@ -147,6 +147,6 @@ if (process.env.NODE_ENV !== 'production' && mongoose.models.PracticeSet) {
   delete (mongoose.models as Record<string, unknown>).PracticeSet;
 }
 
-const PracticeSetModel: Model<IPracticeSet> = mongoose.model<IPracticeSet>('PracticeSet', PracticeSetSchema);
+const PracticeSetModel: Model<IPracticeSet> = (mongoose.models.PracticeSet as Model<IPracticeSet>) || mongoose.model<IPracticeSet>('PracticeSet', PracticeSetSchema);
 
 export default PracticeSetModel;
