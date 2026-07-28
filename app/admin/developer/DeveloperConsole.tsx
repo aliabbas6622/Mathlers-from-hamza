@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 
 type School = { id: string; name: string };
+type Applicant = { id: string; fullName: string; email: string };
 type Credential = { fullName: string; email: string; password: string; role: string };
 
 const downloadCsv = (credentials: Credential[]) => {
@@ -16,7 +17,7 @@ const downloadCsv = (credentials: Credential[]) => {
   URL.revokeObjectURL(link.href);
 };
 
-export default function DeveloperConsole({ schools, allowedRoles = ['admin', 'teacher', 'student'], title = 'Platform controls', description = 'Create school-scoped accounts and use the operations portals to configure learning, competitions, themes, and curriculum.', showPlatformControls = true }: { schools: School[]; allowedRoles?: Array<'admin' | 'teacher' | 'student'>; title?: string; description?: string; showPlatformControls?: boolean }) {
+export default function DeveloperConsole({ schools, applicants = [], allowedRoles = ['admin', 'teacher', 'student'], title = 'Platform controls', description = 'Create school-scoped accounts and use the operations portals to configure learning, competitions, themes, and curriculum.', showPlatformControls = true }: { schools: School[]; applicants?: Applicant[]; allowedRoles?: Array<'admin' | 'teacher' | 'student'>; title?: string; description?: string; showPlatformControls?: boolean }) {
   const [role, setRole] = useState<'admin' | 'teacher' | 'student'>(allowedRoles[0] ?? 'student');
   const [schoolOptions, setSchoolOptions] = useState(schools);
   const [schoolId, setSchoolId] = useState(schools[0]?.id || '');
@@ -56,6 +57,16 @@ export default function DeveloperConsole({ schools, allowedRoles = ['admin', 'te
 
   return <div className="mx-auto max-w-5xl space-y-8">
     <div className="border-b border-gray-200 pb-7"><p className="text-sm font-semibold uppercase tracking-wide text-brand-primary">{showPlatformControls ? 'Developer console' : 'School workspace'}</p><h1 className="mt-1 text-3xl font-bold text-gray-950">{title}</h1><p className="mt-2 text-gray-600">{description}</p></div>
+    {showPlatformControls && applicants.length > 0 && <section className="rounded-xl border border-gray-200 bg-white p-6">
+      <h2 className="text-xl font-bold text-gray-950">Pending access requests</h2>
+      <p className="mt-2 text-sm text-gray-600">Choose a role and school below, then select an applicant to prepare their approval.</p>
+      <div className="mt-4 divide-y divide-gray-100">
+        {applicants.map((applicant) => <div key={applicant.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+          <div><p className="font-semibold text-gray-900">{applicant.fullName}</p><p className="text-sm text-gray-500">{applicant.email}</p></div>
+          <button onClick={() => setRows(`${applicant.fullName}, ${applicant.email}`)} className="rounded-lg border border-transparent px-3 py-2 text-sm font-semibold text-brand-primary hover:border-brand-primary">Select applicant</button>
+        </div>)}
+      </div>
+    </section>}
     <section className="rounded-xl border border-gray-200 bg-white p-6">
       <h2 className="text-xl font-bold text-gray-950">Provision accounts</h2><p className="mt-2 text-sm text-gray-600">Students never self-register. Generate a one-time Excel-compatible credentials file for school distribution; passwords are only returned in this browser response.</p>
       <div className="mt-6 grid gap-4 md:grid-cols-2"><label className="text-sm font-semibold text-gray-700">Role<select value={role} onChange={(event) => setRole(event.target.value as typeof role)} className="mt-2 w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5">{allowedRoles.includes('admin') && <option value="admin">School admin</option>}{allowedRoles.includes('teacher') && <option value="teacher">Teacher</option>}{allowedRoles.includes('student') && <option value="student">Student</option>}</select></label><label className="text-sm font-semibold text-gray-700">School<select value={schoolId} onChange={(event) => setSchoolId(event.target.value)} className="mt-2 w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5">{schoolOptions.map((school) => <option key={school.id} value={school.id}>{school.name}</option>)}</select></label></div>

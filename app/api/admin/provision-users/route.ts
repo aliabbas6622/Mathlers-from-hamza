@@ -54,22 +54,37 @@ export async function POST(request: NextRequest) {
       const password = temporaryPassword();
       const [firstName, ...lastName] = account.fullName.split(/\s+/);
       let clerkUser: Awaited<ReturnType<typeof clerk.users.createUser>> | undefined;
+      let createdInClerk = false;
       try {
-        clerkUser = await clerk.users.createUser({
-          emailAddress: [account.email], password, firstName, lastName: lastName.join(' ') || undefined,
-          publicMetadata: { role: input.role },
+        const applicant = (await clerk.users.getUserList({ emailAddress: [account.email], limit: 1 })).data[0];
+        clerkUser = applicant || await clerk.users.createUser({
+          emailAddress: [account.email],
+          password,
+          firstName,
+          lastName: lastName.join(' ') || undefined,
+          publicMetadata: { mathlersRole: input.role },
         });
+        createdInClerk = !applicant;
+        if (applicant) {
+          await clerk.users.updateUserMetadata(applicant.id, { publicMetadata: { mathlersRole: input.role } });
+        }
         const user = await UserModel.create({
           clerkId: clerkUser.id, fullName: account.fullName, email: account.email, playerId: playerId(), role: input.role,
           school: school._id, schoolName: school.name, grade: input.role === UserRole.STUDENT ? account.grade : undefined,
-          isEmailVerified: false, profileComplete: input.role !== UserRole.STUDENT,
+          isEmailVerified: applicant?.emailAddresses.some((address) => address.verification?.status === 'verified') ?? false,
+          profileComplete: input.role !== UserRole.STUDENT,
         });
         if (input.role === UserRole.ADMIN) {
           await SchoolModel.updateOne({ _id: school._id }, { $set: { coordinator: user._id, coordinatorName: user.fullName } });
         }
-        created.push({ fullName: account.fullName, email: account.email, password, role: input.role });
+        created.push({
+          fullName: account.fullName,
+          email: account.email,
+          password: applicant ? 'Use existing password' : password,
+          role: input.role,
+        });
       } catch {
-        if (clerkUser) await clerk.users.deleteUser(clerkUser.id).catch(() => undefined);
+        if (clerkUser && createdInClerk) await clerk.users.deleteUser(clerkUser.id).catch(() => undefined);
         return NextResponse.json({ error: `Could not provision ${account.email}. ${created.length} account(s) were created; remove or retry the failed row.`, created }, { status: 409 });
       }
     }

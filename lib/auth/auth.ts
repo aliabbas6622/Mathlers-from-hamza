@@ -34,7 +34,10 @@ export async function auth(): Promise<MathlersSession | null> {
       existing.isEmailVerified = true;
       await existing.save();
       user = existing;
-    } else if (configuredSuperAdminEmails().has(email)) {
+    } else if (
+      configuredSuperAdminEmails().has(email)
+      || clerkUser.publicMetadata.mathlersRole === UserRole.SUPER_ADMIN
+    ) {
       try {
         user = await UserModel.create({
           clerkId: userId,

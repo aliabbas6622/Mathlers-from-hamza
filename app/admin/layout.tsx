@@ -9,10 +9,7 @@ export default async function AdminLayout({
 }) {
   const session = await auth();
   
-  if (!session) {
-    redirect('/sign-in');
-  }
-  if (!isSuperAdmin(session.user.role)) redirect('/school');
+  if (!session || !isSuperAdmin(session.user.role)) redirect('/');
 
   return (
     <div data-portal="admin" className="min-h-screen">

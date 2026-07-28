@@ -21,7 +21,7 @@ export default function LandingPage() {
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-gray-600">A school-provisioned platform for structured practice and secure mathematics competitions.</p>
             <div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row">
               <Link href="/sign-in" className="inline-flex items-center justify-center gap-2 rounded-xl border border-transparent bg-brand-primary px-5 py-3 font-semibold text-white transition-colors hover:border-brand-dark hover:bg-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2">Sign in <ArrowRight className="h-4 w-4" /></Link>
-              <Link href="/request-access" className="inline-flex items-center justify-center rounded-xl border border-transparent px-5 py-3 font-semibold text-brand-primary transition-colors hover:border-brand-primary hover:bg-brand-lighter focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2">Request organization access</Link>
+              <Link href="/sign-up" className="inline-flex items-center justify-center rounded-xl border border-transparent px-5 py-3 font-semibold text-brand-primary transition-colors hover:border-brand-primary hover:bg-brand-lighter focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2">Admin / teacher sign-up</Link>
             </div>
           </div>
         </section>

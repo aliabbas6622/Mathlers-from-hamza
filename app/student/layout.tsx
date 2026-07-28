@@ -1,6 +1,7 @@
 import { auth } from '@/lib/auth/auth';
 import { redirect } from 'next/navigation';
 import StudentSidebar from '@/components/layout/StudentSidebar';
+import { UserRole } from '@/models/User';
 
 export default async function StudentLayout({
   children,
@@ -9,9 +10,7 @@ export default async function StudentLayout({
 }) {
   const session = await auth();
   
-  if (!session) {
-    redirect('/sign-in');
-  }
+  if (!session || session.user.role !== UserRole.STUDENT) redirect('/');
 
   return (
     <div data-portal="student" className="min-h-screen">

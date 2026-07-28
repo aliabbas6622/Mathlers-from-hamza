@@ -36,9 +36,9 @@ const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
               <Link href="/#contact" className="text-gray-700 hover:text-brand-primary transition-colors">
                 Contact
               </Link>
-              {isLoaded && isSignedIn ? <UserButton /> : <>
+              {isLoaded && isSignedIn ? <><Link href="/" className="rounded-xl border border-transparent px-3 py-2 text-gray-700 transition-colors hover:border-gray-300 hover:text-brand-primary">Open workspace</Link><UserButton /></> : <>
                 <Link href="/sign-in" className="rounded-xl border border-transparent px-3 py-2 text-gray-700 transition-colors hover:border-gray-300 hover:text-brand-primary">Sign in</Link>
-                <Link href="/request-access" className="rounded-xl border border-transparent bg-brand-primary px-4 py-2 font-semibold text-white transition-colors hover:border-brand-dark hover:bg-brand-dark">Request access</Link>
+                <Link href="/sign-up" className="rounded-xl border border-transparent bg-brand-primary px-4 py-2 font-semibold text-white transition-colors hover:border-brand-dark hover:bg-brand-dark">Admin / teacher sign-up</Link>
               </>}
             </div>
 
@@ -61,9 +61,9 @@ const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
               <Link href="/#contact" className="block text-gray-700 hover:text-brand-primary transition-colors">
                 Contact
               </Link>
-              {isLoaded && isSignedIn ? <UserButton /> : <>
+              {isLoaded && isSignedIn ? <><Link href="/" className="block text-gray-700 hover:text-brand-primary">Open workspace</Link><UserButton /></> : <>
                 <Link href="/sign-in" className="block text-gray-700 hover:text-brand-primary">Sign in</Link>
-                <Link href="/request-access" className="mt-3 inline-block rounded-xl border border-transparent bg-brand-primary px-4 py-2 font-semibold text-white transition-colors hover:border-brand-dark hover:bg-brand-dark">Request access</Link>
+                <Link href="/sign-up" className="mt-3 inline-block rounded-xl border border-transparent bg-brand-primary px-4 py-2 font-semibold text-white transition-colors hover:border-brand-dark hover:bg-brand-dark">Admin / teacher sign-up</Link>
               </>}
             </div>
           )}

@@ -19,7 +19,7 @@ export default async function RootLayout({
   return (
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full flex flex-col">
-        <ClerkProvider>
+        <ClerkProvider afterSignOutUrl="/landing">
           <ThemeProvider initialTheme={theme}>{children}</ThemeProvider>
         </ClerkProvider>
       </body>
