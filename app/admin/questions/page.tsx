@@ -573,7 +573,7 @@ export default function QuestionsPage() {
             </select>
           )}
 
-          {selectedTopic && topics.find((t) => t._id === selectedTopic)?.subtopics?.length > 0 && (
+          {selectedTopic && (topics.find((t) => t._id === selectedTopic)?.subtopics?.length ?? 0) > 0 && (
             <select
               value={selectedSubtopic}
               onChange={(e) => setSelectedSubtopic(e.target.value)}
