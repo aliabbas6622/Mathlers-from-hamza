@@ -16,6 +16,10 @@ export const isStudent = (userRole: UserRole): boolean => {
   return userRole === UserRole.STUDENT;
 };
 
+export const isTeacher = (userRole: UserRole): boolean => {
+  return userRole === UserRole.TEACHER;
+};
+
 export const isCoordinator = (userRole: UserRole): boolean => {
   return userRole === UserRole.COORDINATOR;
 };
@@ -33,7 +37,7 @@ export const canManageUsers = (userRole: UserRole): boolean => {
 };
 
 export const canManageContent = (userRole: UserRole): boolean => {
-  return userRole === UserRole.ADMIN || userRole === UserRole.SUPER_ADMIN;
+  return userRole === UserRole.TEACHER || userRole === UserRole.ADMIN || userRole === UserRole.SUPER_ADMIN;
 };
 
 export const canManageCompetitions = (userRole: UserRole): boolean => {

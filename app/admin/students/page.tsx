@@ -1,10 +1,9 @@
-import { auth } from '@/lib/auth/auth';
+import { auth, isAdmin, isSuperAdmin } from '@/lib/auth/auth';
 import { redirect } from 'next/navigation';
 import connectDB from '@/lib/db/mongodb';
-import UserModel from '@/models/User';
+import UserModel, { UserRole } from '@/models/User';
 import GlassCard from '@/components/ui/GlassCard';
-import PrimaryButton from '@/components/ui/PrimaryButton';
-import { Search, Filter, Plus, Edit, Trash2, Users } from 'lucide-react';
+import { Users } from 'lucide-react';
 
 type StudentRow = {
   _id: { toString(): string };
@@ -19,13 +18,15 @@ type StudentRow = {
 export default async function StudentsPage() {
   const session = await auth();
   
-  if (!session || session.user.role !== 'admin') {
-    redirect('/login');
+  if (!session || !isAdmin(session.user.role)) {
+    redirect('/sign-in');
   }
 
   await connectDB();
 
-  const students = await UserModel.find({ isActive: true })
+  const operator = await UserModel.findById(session.user.id).select('school');
+  const studentScope = isSuperAdmin(session.user.role) ? {} : { school: operator?.school };
+  const students = await UserModel.find({ ...studentScope, role: UserRole.STUDENT, isActive: true })
     .select('fullName email playerId role isActive isSuspended')
     .sort({ createdAt: -1 })
     .limit(50)
@@ -37,41 +38,9 @@ export default async function StudentsPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Students</h1>
-          <p className="text-gray-600">Manage all registered students</p>
+          <p className="text-gray-600">Review active student accounts{isSuperAdmin(session.user.role) ? '.' : ' at your school.'}</p>
         </div>
-        <PrimaryButton>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Student
-        </PrimaryButton>
       </div>
-
-      {/* Search and Filters */}
-      <GlassCard className="p-6">
-        <div className="flex gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search students..."
-              className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none"
-            />
-          </div>
-          <select className="px-4 py-3 rounded-xl border border-gray-200 focus:border-brand-primary outline-none">
-            <option value="">All Roles</option>
-            <option value="student">Student</option>
-            <option value="admin">Admin</option>
-          </select>
-          <select className="px-4 py-3 rounded-xl border border-gray-200 focus:border-brand-primary outline-none">
-            <option value="">All Status</option>
-            <option value="active">Active</option>
-            <option value="suspended">Suspended</option>
-          </select>
-          <PrimaryButton variant="secondary">
-            <Filter className="w-4 h-4 mr-2" />
-            Filter
-          </PrimaryButton>
-        </div>
-      </GlassCard>
 
       {/* Students Table */}
       <GlassCard className="p-6">
@@ -84,7 +53,6 @@ export default async function StudentsPage() {
                 <th className="text-left py-4 px-4 font-semibold text-gray-700">Player ID</th>
                 <th className="text-left py-4 px-4 font-semibold text-gray-700">Role</th>
                 <th className="text-left py-4 px-4 font-semibold text-gray-700">Status</th>
-                <th className="text-left py-4 px-4 font-semibold text-gray-700">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -112,16 +80,6 @@ export default async function StudentsPage() {
                     }`}>
                       {student.isActive && !student.isSuspended ? 'Active' : 'Suspended'}
                     </span>
-                  </td>
-                  <td className="py-4 px-4">
-                    <div className="flex gap-2">
-                      <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                        <Edit className="w-4 h-4 text-gray-600" />
-                      </button>
-                      <button className="p-2 hover:bg-red-50 rounded-lg transition-colors">
-                        <Trash2 className="w-4 h-4 text-red-600" />
-                      </button>
-                    </div>
                   </td>
                 </tr>
               ))}

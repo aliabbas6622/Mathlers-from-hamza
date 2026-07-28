@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth/auth';
+import { auth, isSuperAdmin } from '@/lib/auth/auth';
 import { isThemeScope, normalizePalette } from '@/lib/theme/palette';
 import { getSiteTheme, saveThemePalette } from '@/lib/theme/siteTheme';
 
@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 async function canManageTheme() {
   const session = await auth();
-  return session && ['admin', 'super_admin'].includes(session.user.role);
+  return session && isSuperAdmin(session.user.role);
 }
 
 export async function GET() {

@@ -1,32 +1,36 @@
 import { auth } from '@/lib/auth/auth';
 import { redirect } from 'next/navigation';
 import connectDB from '@/lib/db/mongodb';
-import ResultModel from '@/models/Result';
+import ResultModel, { IResult } from '@/models/Result';
 import Card from '@/components/ui/Card';
+
+type ResultSummary = Pick<IResult, 'score' | 'totalMarks' | 'accuracy' | 'type' | 'completedAt'> & {
+  _id: { toString(): string };
+};
 
 export default async function AnalyticsPage() {
   const session = await auth();
   
   if (!session) {
-    redirect('/login');
+    redirect('/sign-in');
   }
 
   await connectDB();
 
-  const results = await ResultModel.find({ student: session.user.id })
+  const results = (await ResultModel.find({ student: session.user.id })
     .sort({ completedAt: -1 })
-    .limit(100);
+    .limit(100)) as unknown as ResultSummary[];
 
   const totalTests = results.length;
-  const totalScore = results.reduce((sum: number, r: any) => sum + r.score, 0);
-  const totalPossible = results.reduce((sum: number, r: any) => sum + (r.totalMarks || 0), 0);
+  const totalScore = results.reduce((sum, result) => sum + result.score, 0);
+  const totalPossible = results.reduce((sum, result) => sum + result.totalMarks, 0);
   const averageAccuracy = results.length > 0 
-    ? Math.round(results.reduce((sum: number, r: any) => sum + (r.accuracy || 0), 0) / results.length)
+    ? Math.round(results.reduce((sum, result) => sum + result.accuracy, 0) / results.length)
     : 0;
 
-  const subjectPerformance: any = {};
-  results.forEach((result: any) => {
-    const subject = result.subject || 'General';
+  const subjectPerformance: Record<string, { total: number; count: number }> = {};
+  results.forEach((result) => {
+    const subject = 'General';
     if (!subjectPerformance[subject]) {
       subjectPerformance[subject] = { total: 0, count: 0 };
     }
@@ -65,7 +69,7 @@ export default async function AnalyticsPage() {
         <Card className="p-6">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Subject Performance</h2>
           <div className="space-y-4">
-            {Object.entries(subjectPerformance).map(([subject, data]: [string, any]) => (
+            {Object.entries(subjectPerformance).map(([subject, data]) => (
               <div key={subject}>
                 <div className="flex justify-between mb-2">
                   <span className="text-gray-700">{subject}</span>
@@ -85,7 +89,7 @@ export default async function AnalyticsPage() {
         <Card className="p-6">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Recent Performance</h2>
           <div className="space-y-3">
-            {recentResults.map((result: any) => (
+            {recentResults.map((result) => (
               <div key={result._id.toString()} className="flex justify-between items-center p-3 bg-gray-50 rounded">
                 <div>
                   <p className="font-medium text-gray-900">

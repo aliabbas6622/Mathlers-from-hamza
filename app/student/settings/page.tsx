@@ -6,7 +6,7 @@ export default async function SettingsPage() {
   const session = await auth();
   
   if (!session) {
-    redirect('/login');
+    redirect('/sign-in');
   }
 
   return (

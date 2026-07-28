@@ -106,6 +106,8 @@ export default function QuestionForm({
     defaultValues: initialData || defaultValues
   });
 
+  // React Hook Form's watch is required here to keep dependent curriculum fields in sync.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const watchedGrade = watch('grade');
   const watchedSubject = watch('subject');
   const watchedChapter = watch('chapter');

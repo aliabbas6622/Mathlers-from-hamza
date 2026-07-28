@@ -1,3 +1,6 @@
-import { handlers } from '@/lib/auth/auth';
+import { NextResponse } from 'next/server';
 
-export const { GET, POST } = handlers;
+const retired = () => NextResponse.json({ error: 'This authentication endpoint has been retired. Use Clerk sign-in.' }, { status: 410 });
+
+export const GET = retired;
+export const POST = retired;

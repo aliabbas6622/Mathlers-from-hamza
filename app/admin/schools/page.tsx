@@ -1,10 +1,16 @@
 import connectDB from '@/lib/db/mongodb';
 import SchoolModel from '@/models/School';
+import UserModel from '@/models/User';
+import { auth, isSuperAdmin } from '@/lib/auth/auth';
+import { redirect } from 'next/navigation';
 import { Building2, MapPin, Users } from 'lucide-react';
 
 export default async function SchoolsPage() {
+  const session = await auth();
+  if (!session) redirect('/sign-in');
   await connectDB();
-  const schools = await SchoolModel.find().sort({ totalStudents: -1, name: 1 }).limit(50).lean();
+  const operator = await UserModel.findById(session.user.id).select('school');
+  const schools = await SchoolModel.find(isSuperAdmin(session.user.role) ? {} : { _id: operator?.school }).sort({ totalStudents: -1, name: 1 }).limit(50).lean();
   const activeSchools = schools.filter((school) => school.isActive).length;
   const students = schools.reduce((total, school) => total + school.totalStudents, 0);
 

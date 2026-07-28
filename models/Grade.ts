@@ -1,5 +1,5 @@
 import mongoose, { Schema, Model } from 'mongoose';
-import baseSchema, { BaseDocument } from './Base';
+import { BaseDocument } from './Base';
 
 export interface IGrade extends BaseDocument {
   name: string;

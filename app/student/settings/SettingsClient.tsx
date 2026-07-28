@@ -2,8 +2,7 @@
 
 import { useState } from 'react';
 import GlassCard from '@/components/ui/GlassCard';
-import PrimaryButton from '@/components/ui/PrimaryButton';
-import { Bell, Lock, User, Moon, Shield, Key } from 'lucide-react';
+import { Bell, User, Moon, Shield, Key } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface SettingsClientProps {
@@ -93,9 +92,7 @@ export default function SettingsClient({ user }: SettingsClientProps) {
                   readOnly
                 />
               </div>
-              <PrimaryButton type="button" className="mt-4">
-                Save Changes
-              </PrimaryButton>
+              <p className="mt-4 text-sm text-gray-500">Manage your sign-in details from the account menu in the sidebar.</p>
             </form>
           </GlassCard>
         )}
@@ -108,25 +105,7 @@ export default function SettingsClient({ user }: SettingsClientProps) {
             </h2>
             
             <form className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
-                <input 
-                  type="password" 
-                  placeholder="••••••••"
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent outline-none bg-white/50"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
-                <input 
-                  type="password" 
-                  placeholder="••••••••"
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-primary focus:border-transparent outline-none bg-white/50"
-                />
-              </div>
-              <PrimaryButton type="button" className="mt-4">
-                Update Password
-              </PrimaryButton>
+              <p className="text-gray-600">Password, multi-factor authentication, and connected accounts are managed securely through Clerk. Open the account menu in the sidebar to update them.</p>
             </form>
           </GlassCard>
         )}

@@ -1,24 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth/auth';
+import { auth, isSuperAdmin } from '@/lib/auth/auth';
 import connectDB from '@/lib/db/mongodb';
 import QuestionModel from '@/models/Question';
 import mongoose from 'mongoose';
+
+const timeRanges = new Set(['all', 'today', 'week', 'month', 'year']);
+const difficulties = new Set(['easy', 'medium', 'hard']);
 
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
     
-    if (!session || !['admin', 'super_admin'].includes(session.user.role)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    await connectDB();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!isSuperAdmin(session.user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const searchParams = request.nextUrl.searchParams;
     const subject = searchParams.get('subject') || '';
     const grade = searchParams.get('grade') || '';
     const difficulty = searchParams.get('difficulty') || '';
     const timeRange = searchParams.get('timeRange') || 'all';
+
+    if ((subject && !mongoose.isValidObjectId(subject)) || (grade && !mongoose.isValidObjectId(grade))) {
+      return NextResponse.json({ error: 'Invalid subject or grade filter' }, { status: 400 });
+    }
+    if (difficulty && !difficulties.has(difficulty)) {
+      return NextResponse.json({ error: 'Invalid difficulty filter' }, { status: 400 });
+    }
+    if (!timeRanges.has(timeRange)) {
+      return NextResponse.json({ error: 'Invalid time range' }, { status: 400 });
+    }
+
+    await connectDB();
 
     // Build match stage
     const matchStage: Record<string, unknown> = {};

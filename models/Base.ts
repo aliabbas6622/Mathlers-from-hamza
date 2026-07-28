@@ -1,4 +1,4 @@
-import mongoose, { Schema, Model, Document } from 'mongoose';
+import { Schema, Document } from 'mongoose';
 
 export interface BaseDocument extends Document {
   createdAt: Date;

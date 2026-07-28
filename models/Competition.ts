@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto';
 import mongoose, { Schema, Model } from 'mongoose';
 import { BaseDocument } from './Base';
 
@@ -284,7 +285,7 @@ const CompetitionSchema = new Schema<ICompetition>(
         enum: Object.values(RegistrationType),
         default: RegistrationType.AUTOMATIC,
       },
-      accessCode: { type: String },
+      accessCode: { type: String, trim: true, uppercase: true },
     },
 
     // Schedule
@@ -368,7 +369,7 @@ CompetitionSchema.index({ status: 1 });
 CompetitionSchema.index({ category: 1 });
 CompetitionSchema.index({ 'registration.startDate': 1, 'registration.endDate': 1 });
 CompetitionSchema.index({ 'schedule.competitionStartDate': 1, 'schedule.competitionEndDate': 1 });
-CompetitionSchema.index({ 'registration.accessCode': 1 });
+CompetitionSchema.index({ 'registration.accessCode': 1 }, { unique: true, sparse: true });
 
 // ─── Access Code Generation ─────────────────────────────────────────────────
 
@@ -379,7 +380,7 @@ CompetitionSchema.pre('save', function () {
     !this.registration.accessCode
   ) {
     const gradeTag = this.eligibility.grades[0]?.replace(/\s/g, '') || 'GX';
-    const randomPart = Math.random().toString(36).slice(2, 6).toUpperCase();
+    const randomPart = randomBytes(8).toString('hex').toUpperCase();
     this.registration.accessCode = `MTH-${gradeTag}-${randomPart}`;
   }
 });

@@ -1,28 +1,32 @@
 import { auth } from '@/lib/auth/auth';
 import { redirect } from 'next/navigation';
 import connectDB from '@/lib/db/mongodb';
-import ResultModel from '@/models/Result';
+import ResultModel, { IResult } from '@/models/Result';
 import Card from '@/components/ui/Card';
+
+type ResultListItem = Pick<IResult, 'type' | 'score' | 'totalMarks' | 'accuracy' | 'completedAt'> & {
+  _id: { toString(): string };
+};
 
 export default async function ResultsPage() {
   const session = await auth();
   
   if (!session) {
-    redirect('/login');
+    redirect('/sign-in');
   }
 
   await connectDB();
 
-  const results = await ResultModel.find({ student: session.user.id })
+  const results = (await ResultModel.find({ student: session.user.id })
     .sort({ completedAt: -1 })
-    .limit(20);
+    .limit(20)) as unknown as ResultListItem[];
 
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold text-gray-900 mb-8">Your Results</h1>
 
       <div className="space-y-4">
-        {results.map((result: any) => (
+        {results.map((result) => (
           <Card key={result._id.toString()} className="p-6">
             <div className="flex justify-between items-center">
               <div>

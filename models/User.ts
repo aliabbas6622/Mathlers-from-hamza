@@ -1,29 +1,32 @@
 import mongoose, { Schema, Model } from 'mongoose';
-import baseSchema, { BaseDocument } from './Base';
+import { BaseDocument } from './Base';
 
 export enum UserRole {
   STUDENT = 'student',
+  TEACHER = 'teacher',
   ADMIN = 'admin',
   SUPER_ADMIN = 'super_admin',
   COORDINATOR = 'coordinator',
 }
 
 export interface IUser extends BaseDocument {
+  clerkId?: string;
   fullName: string;
-  fatherName: string;
-  dateOfBirth: Date;
-  gender: 'male' | 'female' | 'other';
+  fatherName?: string;
+  dateOfBirth?: Date;
+  gender?: 'male' | 'female' | 'other';
   email: string;
-  phone: string;
-  password: string;
+  phone?: string;
+  password?: string;
   school?: mongoose.Types.ObjectId;
   schoolName?: string;
-  city: string;
-  grade: string;
+  city?: string;
+  grade?: string;
   role: UserRole;
   playerId: string;
   profilePicture?: string;
   isEmailVerified: boolean;
+  profileComplete: boolean;
   emailVerificationToken?: string;
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
@@ -45,6 +48,12 @@ export interface IUser extends BaseDocument {
 
 const UserSchema = new Schema<IUser>(
   {
+    clerkId: {
+      type: String,
+      unique: true,
+      sparse: true,
+      immutable: true,
+    },
     fullName: {
       type: String,
       required: [true, 'Full name is required'],
@@ -52,16 +61,13 @@ const UserSchema = new Schema<IUser>(
     },
     fatherName: {
       type: String,
-      required: [true, 'Father name is required'],
       trim: true,
     },
     dateOfBirth: {
       type: Date,
-      required: [true, 'Date of birth is required'],
     },
     gender: {
       type: String,
-      required: [true, 'Gender is required'],
       enum: ['male', 'female', 'other'],
     },
     email: {
@@ -73,13 +79,12 @@ const UserSchema = new Schema<IUser>(
     },
     phone: {
       type: String,
-      required: [true, 'Phone number is required'],
       trim: true,
     },
     password: {
       type: String,
-      required: [true, 'Password is required'],
       minlength: [8, 'Password must be at least 8 characters'],
+      select: false,
     },
     school: {
       type: Schema.Types.ObjectId,
@@ -91,12 +96,10 @@ const UserSchema = new Schema<IUser>(
     },
     city: {
       type: String,
-      required: [true, 'City is required'],
       trim: true,
     },
     grade: {
       type: String,
-      required: [true, 'Grade is required'],
       enum: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'],
     },
     role: {
@@ -117,14 +120,21 @@ const UserSchema = new Schema<IUser>(
       type: Boolean,
       default: false,
     },
+    profileComplete: {
+      type: Boolean,
+      default: false,
+    },
     emailVerificationToken: {
       type: String,
+      select: false,
     },
     resetPasswordToken: {
       type: String,
+      select: false,
     },
     resetPasswordExpires: {
       type: Date,
+      select: false,
     },
     level: {
       type: Number,
@@ -192,15 +202,6 @@ UserSchema.index({ grade: 1 });
 UserSchema.index({ role: 1 });
 UserSchema.index({ points: -1 });
 UserSchema.index({ nationalRank: 1 });
-
-UserSchema.pre('save', async function (this: IUser) {
-  if (!this.playerId) {
-    const year = new Date().getFullYear().toString().slice(-2);
-    const count = await mongoose.model('User').countDocuments();
-    const sequence = String(count + 1).padStart(6, '0');
-    this.playerId = `MTH-${year}-${sequence}`;
-  }
-});
 
 const UserModel: Model<IUser> = mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
 

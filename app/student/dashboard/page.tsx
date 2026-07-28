@@ -38,7 +38,7 @@ export default async function StudentDashboard() {
   const session = await auth();
   
   if (!session) {
-    redirect('/login');
+    redirect('/sign-in');
   }
 
   await connectDB();

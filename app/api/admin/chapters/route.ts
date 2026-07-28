@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db/mongodb';
 import ChapterModel from '@/models/Chapter';
+import { auth, isSuperAdmin } from '@/lib/auth/auth';
 
 export async function GET(request: NextRequest) {
   try {
+    const session = await auth();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!isSuperAdmin(session.user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     await connectDB();
 
     const searchParams = request.nextUrl.searchParams;

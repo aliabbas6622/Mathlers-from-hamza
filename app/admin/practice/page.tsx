@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { BookOpen, Check, Clock, FilePlus2, Plus, Trash2 } from 'lucide-react';
+import { BookOpen, FilePlus2, Plus, Trash2 } from 'lucide-react';
 import GlassCard from '@/components/ui/GlassCard';
 import Modal from '@/components/ui/Modal';
 import PrimaryButton from '@/components/ui/PrimaryButton';
@@ -36,7 +36,10 @@ export default function AdminPracticePage() {
     if (questionData.success) setQuestions(questionData.data);
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [load]);
 
   const updateSection = (index: number, changes: Partial<Section>) => {
     setForm((current) => ({ ...current, sections: current.sections.map((section, itemIndex) => itemIndex === index ? { ...section, ...changes } : section) }));

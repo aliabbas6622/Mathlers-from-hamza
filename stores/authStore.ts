@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { Session } from 'next-auth';
+
+type Session = { user: { id: string; email?: string; name?: string; role?: string } };
 
 interface AuthState {
   session: Session | null;

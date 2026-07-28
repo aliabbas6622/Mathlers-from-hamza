@@ -5,7 +5,7 @@ import connectDB from '@/lib/db/mongodb';
 import CompetitionModel from '@/models/Competition';
 import EnrollmentModel from '@/models/Enrollment';
 import Link from 'next/link';
-import { Trophy, CheckCircle, Award, ArrowRight, BarChart2, Clock, Calendar } from 'lucide-react';
+import { Trophy, ArrowRight, BarChart2 } from 'lucide-react';
 import GlassCard from '@/components/ui/GlassCard';
 import PrimaryButton from '@/components/ui/PrimaryButton';
 import { isValidObjectId } from '@/lib/utils/isValidObjectId';
@@ -14,11 +14,14 @@ export default async function StudentCompetitionResultsPage({ params }: { params
   const session = await auth();
 
   if (!session || !isValidObjectId(session.user.id)) {
-    redirect('/login');
+    redirect('/sign-in');
   }
 
   await connectDB();
   const { id } = await params;
+  if (!isValidObjectId(id)) {
+    redirect('/student/competitions');
+  }
 
   const competition = await CompetitionModel.findById(id);
   if (!competition) {

@@ -4,20 +4,22 @@ import connectDB from '@/lib/db/mongodb';
 import UserModel, { UserRole } from '@/models/User';
 import ResultModel from '@/models/Result';
 import GlassCard from '@/components/ui/GlassCard';
-import PrimaryButton from '@/components/ui/PrimaryButton';
-import { Download, Share2, Award, Star, TrendingUp } from 'lucide-react';
+import { Award, Star, TrendingUp } from 'lucide-react';
 
 export default async function PlayerCardPage() {
   const session = await auth();
   
   if (!session) {
-    redirect('/login');
+    redirect('/sign-in');
   }
 
   await connectDB();
 
   const user = await UserModel.findById(session.user.id);
-  const results = await ResultModel.find({ student: session.user.id });
+  const [resultCount, recentResults] = await Promise.all([
+    ResultModel.countDocuments({ student: session.user.id }),
+    ResultModel.find({ student: session.user.id }).sort({ completedAt: -1 }).limit(4).select('type score totalMarks completedAt'),
+  ]);
 
   const totalPoints = user?.points || 0;
   const hasSchool = !!user?.school;
@@ -90,8 +92,8 @@ export default async function PlayerCardPage() {
           </div>
           <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 text-center">
             <TrendingUp className="w-8 h-8 mx-auto mb-2" />
-            <p className="text-2xl font-bold">{results.length}</p>
-            <p className="text-sm opacity-90">Tests Taken</p>
+            <p className="text-2xl font-bold">{resultCount}</p>
+            <p className="text-sm opacity-90">Recorded results</p>
           </div>
           <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 text-center">
             <Star className="w-8 h-8 mx-auto mb-2" />
@@ -100,42 +102,13 @@ export default async function PlayerCardPage() {
           </div>
         </div>
 
-        {/* QR Code Placeholder */}
-        <div className="bg-white rounded-xl p-6 mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-900 font-semibold mb-1">Scan to View Profile</p>
-              <p className="text-gray-600 text-sm">Share your achievements with others</p>
-            </div>
-            <div className="w-24 h-24 bg-gray-100 rounded-lg flex items-center justify-center">
-              <div className="w-20 h-20 bg-gray-300 rounded" />
-            </div>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex gap-4">
-          <PrimaryButton variant="secondary" className="flex-1">
-            <Download className="w-5 h-5 mr-2" />
-            Download Card
-          </PrimaryButton>
-          <PrimaryButton variant="secondary" className="flex-1">
-            <Share2 className="w-5 h-5 mr-2" />
-            Share Profile
-          </PrimaryButton>
-        </div>
       </GlassCard>
 
-      {/* Additional Info */}
       <GlassCard className="p-6 mt-6">
-        <h3 className="text-xl font-bold text-gray-900 mb-4">Achievements</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {['First Win', 'Speed Demon', 'Perfect Score', 'Streak Master'].map((achievement) => (
-            <div key={achievement} className="bg-brand-lighter rounded-xl p-4 text-center">
-              <Award className="w-8 h-8 mx-auto mb-2 text-brand-primary" />
-              <p className="font-semibold text-gray-900 text-sm">{achievement}</p>
-            </div>
-          ))}
+        <h3 className="text-xl font-bold text-gray-900 mb-4">Recent results</h3>
+        <div className="space-y-3">
+          {recentResults.map((result) => <div key={result._id.toString()} className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-4 py-3"><div><p className="font-semibold capitalize text-gray-900">{result.type}</p><p className="text-xs text-gray-500">{new Date(result.completedAt).toLocaleDateString()}</p></div><p className="font-bold text-brand-primary">{result.score} / {result.totalMarks}</p></div>)}
+          {!recentResults.length && <p className="py-6 text-center text-sm text-gray-500">Complete practice or a competition to see your results here.</p>}
         </div>
       </GlassCard>
     </div>

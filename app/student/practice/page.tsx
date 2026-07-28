@@ -1,15 +1,13 @@
 import { auth } from '@/lib/auth/auth';
 import { redirect } from 'next/navigation';
-import Link from 'next/link';
 import connectDB from '@/lib/db/mongodb';
 import PracticeSetModel from '@/models/PracticeSet';
-import SubjectModel from '@/models/Subject';
 import GlassCard from '@/components/ui/GlassCard';
-import PrimaryButton from '@/components/ui/PrimaryButton';
-import { BookOpen, Zap, Target, Clock } from 'lucide-react';
+import { BookOpen, Target, Clock } from 'lucide-react';
 
-type ListItem = { _id: { toString(): string }; name: string };
-type PracticeSetItem = ListItem & {
+type PracticeSetItem = {
+  _id: { toString(): string };
+  name: string;
   description?: string;
   difficulty?: 'easy' | 'medium' | 'hard';
   subject?: { name?: string };
@@ -22,14 +20,13 @@ export default async function PracticePage() {
   const session = await auth();
   
   if (!session) {
-    redirect('/login');
+    redirect('/sign-in');
   }
 
   await connectDB();
 
   const now = new Date();
-  const [practiceSets, subjects] = await Promise.all([
-    PracticeSetModel.find({
+  const practiceSets = await PracticeSetModel.find({
       isPublished: true,
       'availability.startDate': { $lte: now },
       'availability.endDate': { $gte: now },
@@ -38,9 +35,7 @@ export default async function PracticePage() {
       .populate('grade', 'name')
       .select('name description difficulty subject grade questions timeLimit')
       .limit(20)
-      .lean(),
-    SubjectModel.find({ isActive: true }).select('name').sort({ order: 1 }).lean(),
-  ]);
+      .lean();
 
   return (
     <div className="space-y-8">
@@ -49,99 +44,13 @@ export default async function PracticePage() {
         <p className="text-gray-600">Choose your practice mode and start improving</p>
       </div>
 
-      {/* Practice Mode Selection */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <GlassCard className="p-6 hover:scale-105 transition-transform cursor-pointer">
-          <div className="text-center">
-            <div className="w-16 h-16 bg-brand-lighter rounded-full mx-auto mb-4 flex items-center justify-center">
-              <BookOpen className="w-8 h-8 text-brand-primary" />
-            </div>
-            <h3 className="font-bold text-gray-900 mb-2">Topic Practice</h3>
-            <p className="text-sm text-gray-600">Master specific topics</p>
-          </div>
-        </GlassCard>
-
-        <GlassCard className="p-6 hover:scale-105 transition-transform cursor-pointer">
-          <div className="text-center">
-            <div className="w-16 h-16 bg-brand-lighter rounded-full mx-auto mb-4 flex items-center justify-center">
-              <Zap className="w-8 h-8 text-brand-primary" />
-            </div>
-            <h3 className="font-bold text-gray-900 mb-2">Daily Challenge</h3>
-            <p className="text-sm text-gray-600">New problems every day</p>
-          </div>
-        </GlassCard>
-
-        <GlassCard className="p-6 hover:scale-105 transition-transform cursor-pointer">
-          <div className="text-center">
-            <div className="w-16 h-16 bg-brand-lighter rounded-full mx-auto mb-4 flex items-center justify-center">
-              <Clock className="w-8 h-8 text-brand-primary" />
-            </div>
-            <h3 className="font-bold text-gray-900 mb-2">Speed Practice</h3>
-            <p className="text-sm text-gray-600">Test your speed</p>
-          </div>
-        </GlassCard>
-
-        <GlassCard className="p-6 hover:scale-105 transition-transform cursor-pointer">
-          <div className="text-center">
-            <div className="w-16 h-16 bg-brand-lighter rounded-full mx-auto mb-4 flex items-center justify-center">
-              <Target className="w-8 h-8 text-brand-primary" />
-            </div>
-            <h3 className="font-bold text-gray-900 mb-2">Mixed Challenge</h3>
-            <p className="text-sm text-gray-600">Random topic mix</p>
-          </div>
-        </GlassCard>
-      </div>
-
-      {/* Step Navigation */}
-      <GlassCard className="p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-6">Browse by Topic</h2>
-        
-        <div className="flex items-center gap-4 mb-6">
-          <div className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-xl">
-            <span className="font-semibold">Subject</span>
-          </div>
-          <div className="text-gray-400">→</div>
-          <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-600 rounded-xl">
-            <span>Grade</span>
-          </div>
-          <div className="text-gray-400">→</div>
-          <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-600 rounded-xl">
-            <span>Chapter</span>
-          </div>
-          <div className="text-gray-400">→</div>
-          <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-600 rounded-xl">
-            <span>Topic</span>
-          </div>
-          <div className="text-gray-400">→</div>
-          <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-600 rounded-xl">
-            <span>Practice Set</span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {(subjects as ListItem[]).map((subject) => (
-            <Link key={subject._id.toString()} href={`/student/practice/subject/${subject._id}`}>
-              <GlassCard className="p-4 text-center hover:scale-105 transition-transform">
-                <div className="w-12 h-12 bg-brand-lighter rounded-full mx-auto mb-3 flex items-center justify-center">
-                  <BookOpen className="w-6 h-6 text-brand-primary" />
-                </div>
-                <p className="font-semibold text-gray-900 text-sm">{subject.name}</p>
-              </GlassCard>
-            </Link>
-          ))}
-        </div>
-      </GlassCard>
-
       {/* Available Practice Sets */}
       <GlassCard className="p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-gray-900">Available Practice Sets</h2>
-          <PrimaryButton variant="secondary" size="sm">View All</PrimaryButton>
-        </div>
+        <h2 className="mb-6 text-xl font-bold text-gray-900">Available Practice Sets</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {(practiceSets as PracticeSetItem[]).map((set) => (
-            <GlassCard key={set._id.toString()} className="p-6 hover:scale-105 transition-transform">
+            <GlassCard key={set._id.toString()} className="p-6">
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <h3 className="font-bold text-gray-900 mb-1">{set.name}</h3>
@@ -176,9 +85,7 @@ export default async function PracticePage() {
                 </div>
               </div>
 
-              <Link href={`/student/practice/${set._id}`}>
-                <PrimaryButton className="w-full">Start Practice</PrimaryButton>
-              </Link>
+              <a href={`/student/practice/${set._id}`} className="inline-flex w-full justify-center rounded-xl border border-transparent bg-brand-primary px-6 py-3 font-semibold text-white transition-colors hover:border-brand-dark hover:bg-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2">Start Practice</a>
             </GlassCard>
           ))}
         </div>

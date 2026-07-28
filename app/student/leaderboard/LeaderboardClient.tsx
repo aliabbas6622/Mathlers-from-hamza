@@ -4,8 +4,18 @@ import { useState } from 'react';
 import GlassCard from '@/components/ui/GlassCard';
 import { Trophy, Medal, Award } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import PrimaryButton from '@/components/ui/PrimaryButton';
-import Link from 'next/link';
+
+export interface LeaderboardEntry {
+  id: string;
+  name: string;
+  playerId: string;
+  score: number;
+}
+
+export interface CurrentUserLeaderboardData {
+  id: string;
+  points: number;
+}
 
 export default function LeaderboardClient({
   nationalLeaderboard,
@@ -15,11 +25,11 @@ export default function LeaderboardClient({
   currentUser,
   hasSchool
 }: {
-  nationalLeaderboard: any[];
-  schoolLeaderboard: any[];
+  nationalLeaderboard: LeaderboardEntry[];
+  schoolLeaderboard: LeaderboardEntry[];
   userNationalRank: number | null;
   userSchoolRank: number | null;
-  currentUser: any;
+  currentUser: CurrentUserLeaderboardData | null;
   hasSchool: boolean;
 }) {
   const [activeTab, setActiveTab] = useState<'national' | 'school'>(hasSchool ? 'school' : 'national');
@@ -102,8 +112,8 @@ export default function LeaderboardClient({
           </div>
         ) : (
           <div className="space-y-4">
-            {currentLeaderboard.map((entry: any, index: number) => {
-              const isCurrentUser = entry.id === currentUser.id;
+            {currentLeaderboard.map((entry, index) => {
+              const isCurrentUser = entry.id === currentUser?.id;
               return (
                 <div
                   key={entry.id}

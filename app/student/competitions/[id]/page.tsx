@@ -2,7 +2,7 @@ import React from 'react';
 import { auth } from '@/lib/auth/auth';
 import { redirect } from 'next/navigation';
 import connectDB from '@/lib/db/mongodb';
-import CompetitionModel from '@/models/Competition';
+import CompetitionModel, { CompetitionCategory, CompetitionStatus, IChampionshipRound, ISection } from '@/models/Competition';
 import EnrollmentModel from '@/models/Enrollment';
 import Link from 'next/link';
 import { ChevronLeft, Calendar, Users, Trophy, Book, Award, Clock, Layers } from 'lucide-react';
@@ -14,12 +14,15 @@ export default async function StudentCompetitionDetailPage({ params }: { params:
   const session = await auth();
   
   if (!session) {
-    redirect('/login');
+    redirect('/sign-in');
   }
 
   await connectDB();
   
   const { id } = await params;
+  if (!isValidObjectId(id)) {
+    redirect('/student/competitions');
+  }
   const competition = await CompetitionModel.findById(id);
 
   if (!competition) {
@@ -37,11 +40,26 @@ export default async function StudentCompetitionDetailPage({ params }: { params:
   const enrollment = hasValidId 
     ? await EnrollmentModel.findOne({ competition: id, student: session.user.id }) 
     : null;
+
+  const visibleStatuses = [
+    CompetitionStatus.REGISTRATION_OPEN,
+    CompetitionStatus.REGISTRATION_CLOSED,
+    CompetitionStatus.IN_PROGRESS,
+    CompetitionStatus.PAUSED,
+    CompetitionStatus.COMPLETED,
+  ];
+  if (!enrollment && !visibleStatuses.includes(competition.status)) {
+    redirect('/student/competitions');
+  }
   
   const isEnrolled = !!enrollment;
   const isFull = (competition.analytics?.totalRegistrations || 0) >= (competition.eligibility?.maxParticipants || 500);
   const registrationOpen = competition.status === 'registration_open';
   const categoryIcon: Record<string, string> = { public: '🌍', grade: '🏫', championship: '🥊' };
+  const now = new Date();
+  const activeRound = competition.category === CompetitionCategory.CHAMPIONSHIP
+    ? competition.rounds.find((round) => new Date(round.schedule.startDate) <= now && now < new Date(round.schedule.endDate))
+    : undefined;
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -88,7 +106,12 @@ export default async function StudentCompetitionDetailPage({ params }: { params:
               Sections & Structure
             </h2>
             <div className="space-y-4">
-              {competition.sections?.map((section: any, idx: number) => (
+              {competition.category === CompetitionCategory.CHAMPIONSHIP ? competition.rounds?.map((round: IChampionshipRound, idx: number) => (
+                <div key={round.roundNumber} className="flex flex-col gap-3 rounded-xl border border-gray-100 bg-gray-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-4"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-lighter font-bold text-brand-primary">{idx + 1}</div><div><h3 className="font-bold text-gray-900">{round.name}</h3><p className="text-sm text-gray-500">{round.sections.length} section(s) · {round.sections.reduce((total, section) => total + section.settings.duration, 0)} mins</p></div></div>
+                  <div className="text-sm font-semibold text-gray-700">{new Date(round.schedule.startDate).toLocaleDateString()} — {new Date(round.schedule.endDate).toLocaleDateString()}{activeRound?.roundNumber === round.roundNumber && <span className="ml-2 rounded-full bg-green-100 px-2 py-1 text-xs text-green-700">Live now</span>}</div>
+                </div>
+              )) : competition.sections?.map((section: ISection, idx: number) => (
                 <div key={idx} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-gray-50 rounded-xl border border-gray-100 gap-4">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 shrink-0 bg-brand-lighter rounded-lg flex items-center justify-center text-brand-primary font-bold">
@@ -111,7 +134,7 @@ export default async function StudentCompetitionDetailPage({ params }: { params:
                   </div>
                 </div>
               ))}
-              {(!competition.sections || competition.sections.length === 0) && (
+              {((competition.category === CompetitionCategory.CHAMPIONSHIP && !competition.rounds?.length) || (competition.category !== CompetitionCategory.CHAMPIONSHIP && !competition.sections?.length)) && (
                 <p className="text-gray-500 text-center py-4">No sections configured yet.</p>
               )}
             </div>
@@ -184,9 +207,12 @@ export default async function StudentCompetitionDetailPage({ params }: { params:
               <EnrollButton 
                 competitionId={competition._id.toString()} 
                 isEnrolled={isEnrolled}
+                enrollmentStatus={enrollment?.status}
                 isFull={isFull}
                 registrationOpen={registrationOpen}
-                status={competition.status}
+                status={activeRound && competition.status === CompetitionStatus.IN_PROGRESS ? CompetitionStatus.IN_PROGRESS : competition.status}
+                requiresRulebookAcceptance={competition.rulebook?.acceptanceRequired === true}
+                requiresAccessCode={competition.registration?.type === 'access_code'}
               />
             </div>
           </GlassCard>

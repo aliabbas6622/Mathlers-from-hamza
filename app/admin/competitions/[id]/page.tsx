@@ -1,8 +1,8 @@
 import React from 'react';
-import { auth } from '@/lib/auth/auth';
+import { auth, isAdmin } from '@/lib/auth/auth';
 import { redirect } from 'next/navigation';
 import connectDB from '@/lib/db/mongodb';
-import CompetitionModel from '@/models/Competition';
+import CompetitionModel, { ISection } from '@/models/Competition';
 import Link from 'next/link';
 import { ChevronRight, Settings, Users, Calendar, Trophy, CheckCircle, Clock, Layers } from 'lucide-react';
 import GlassCard from '@/components/ui/GlassCard';
@@ -12,8 +12,8 @@ import PrimaryButton from '@/components/ui/PrimaryButton';
 export default async function CompetitionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   
-  if (!session || session.user.role !== 'admin') {
-    redirect('/login');
+  if (!session || !isAdmin(session.user.role)) {
+    redirect('/sign-in');
   }
 
   await connectDB();
@@ -101,7 +101,7 @@ export default async function CompetitionDetailPage({ params }: { params: Promis
           <GlassCard className="p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4 border-b border-gray-100 pb-2">Sections</h2>
             <div className="space-y-4">
-              {competition.sections?.map((section: any, idx: number) => (
+              {competition.sections?.map((section: ISection, idx: number) => (
                 <div key={idx} className="flex justify-between items-center p-4 bg-gray-50 rounded-xl border border-gray-100">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 bg-brand-lighter rounded-lg flex items-center justify-center text-brand-primary font-bold">

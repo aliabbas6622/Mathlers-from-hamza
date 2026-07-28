@@ -17,12 +17,12 @@ export default function PrimaryButton({
   disabled,
   ...props
 }: PrimaryButtonProps) {
-  const baseStyles = 'font-semibold rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed';
+  const baseStyles = 'rounded-xl border border-transparent font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2';
   
   const variantStyles = {
-    primary: 'bg-brand-primary text-white hover:bg-brand-dark hover:shadow-lg hover:scale-[1.02]',
-    secondary: 'bg-white text-brand-primary border-2 border-brand-primary hover:bg-brand-lighter',
-    ghost: 'bg-transparent text-brand-primary hover:bg-brand-lighter',
+    primary: 'bg-brand-primary text-white hover:border-brand-dark hover:bg-brand-dark',
+    secondary: 'bg-white text-brand-primary hover:border-brand-primary hover:bg-brand-lighter',
+    ghost: 'bg-transparent text-brand-primary hover:border-brand-primary hover:bg-brand-lighter',
   };
 
   const sizeStyles = {

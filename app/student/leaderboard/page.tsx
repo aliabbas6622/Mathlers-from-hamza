@@ -2,13 +2,13 @@ import { auth } from '@/lib/auth/auth';
 import { redirect } from 'next/navigation';
 import connectDB from '@/lib/db/mongodb';
 import UserModel, { UserRole } from '@/models/User';
-import LeaderboardClient from './LeaderboardClient';
+import LeaderboardClient, { CurrentUserLeaderboardData, LeaderboardEntry } from './LeaderboardClient';
 
 export default async function LeaderboardPage() {
   const session = await auth();
   
   if (!session) {
-    redirect('/login');
+    redirect('/sign-in');
   }
 
   await connectDB();
@@ -23,7 +23,7 @@ export default async function LeaderboardPage() {
     .limit(20)
     .lean();
 
-  const nationalLeaderboard = topNational.map((student: any) => ({
+  const nationalLeaderboard: LeaderboardEntry[] = topNational.map((student) => ({
     id: student._id.toString(),
     name: student.fullName,
     playerId: student.playerId,
@@ -41,7 +41,7 @@ export default async function LeaderboardPage() {
   }
 
   // 2. Fetch School Data
-  let schoolLeaderboard: any[] = [];
+  let schoolLeaderboard: LeaderboardEntry[] = [];
   let userSchoolRank = null;
 
   if (hasSchool) {
@@ -54,7 +54,7 @@ export default async function LeaderboardPage() {
       .limit(20)
       .lean();
 
-    schoolLeaderboard = topSchool.map((student: any) => ({
+    schoolLeaderboard = topSchool.map((student) => ({
       id: student._id.toString(),
       name: student.fullName,
       playerId: student.playerId,
@@ -73,7 +73,7 @@ export default async function LeaderboardPage() {
   }
 
   // Serialize current user to pass to client
-  const safeCurrentUser = currentUser ? {
+  const safeCurrentUser: CurrentUserLeaderboardData | null = currentUser ? {
     id: currentUser._id.toString(),
     points: currentUser.points || 0,
   } : null;

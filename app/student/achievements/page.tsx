@@ -10,7 +10,7 @@ export default async function AchievementsPage() {
   const session = await auth();
   
   if (!session) {
-    redirect('/login');
+    redirect('/sign-in');
   }
 
   await connectDB();
