@@ -1,7 +1,8 @@
 import { auth } from '@/lib/auth/auth';
 import { redirect } from 'next/navigation';
 import connectDB from '@/lib/db/mongodb';
-import PracticeSetModel from '@/models/PracticeSet';
+import PracticeSetModel, { IPracticeSet } from '@/models/PracticeSet';
+import type { FilterQuery } from 'mongoose';
 import GlassCard from '@/components/ui/GlassCard';
 
 import { BookOpen, Target, Clock, Filter } from 'lucide-react';
@@ -37,14 +38,7 @@ export default async function PracticePage({
   await connectDB();
 
   const now = new Date();
-  type FilterQuery = {
-    isPublished: boolean;
-    $or?: Array<Record<string, unknown>>;
-    $and?: Array<Record<string, unknown>>;
-    subject?: string;
-    difficulty?: string;
-  };
-  const query: FilterQuery = {
+  const query: FilterQuery<IPracticeSet> = {
     isPublished: true,
     $or: [
       { 'availability.startDate': { $exists: false } },
@@ -56,11 +50,11 @@ export default async function PracticePage({
   };
 
   if (resolvedSearchParams.subject) {
-    query.subject = resolvedSearchParams.subject;
+    query.subject = resolvedSearchParams.subject as unknown as IPracticeSet['subject'];
   }
   
   if (resolvedSearchParams.difficulty && resolvedSearchParams.difficulty !== 'all') {
-    query.difficulty = resolvedSearchParams.difficulty;
+    query.difficulty = resolvedSearchParams.difficulty as IPracticeSet['difficulty'];
   }
 
   const [practiceSets, subjects] = await Promise.all([
