@@ -55,6 +55,11 @@ ChapterSchema.index({ subject: 1, grade: 1, code: 1 });
 ChapterSchema.index({ order: 1 });
 ChapterSchema.index({ isActive: 1 });
 
-const ChapterModel: Model<IChapter> = mongoose.models.Chapter || mongoose.model<IChapter>('Chapter', ChapterSchema);
+let ChapterModel: Model<IChapter>;
+try {
+  ChapterModel = mongoose.model<IChapter>('Chapter');
+} catch {
+  ChapterModel = mongoose.model<IChapter>('Chapter', ChapterSchema);
+}
 
 export default ChapterModel;

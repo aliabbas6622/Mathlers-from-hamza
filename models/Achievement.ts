@@ -47,6 +47,11 @@ const AchievementSchema = new Schema<IAchievement>(
 AchievementSchema.index({ student: 1, badge: 1 });
 AchievementSchema.index({ isCompleted: 1 });
 
-const AchievementModel: Model<IAchievement> = mongoose.models.Achievement || mongoose.model<IAchievement>('Achievement', AchievementSchema);
+let AchievementModel: Model<IAchievement>;
+try {
+  AchievementModel = mongoose.model<IAchievement>('Achievement');
+} catch {
+  AchievementModel = mongoose.model<IAchievement>('Achievement', AchievementSchema);
+}
 
 export default AchievementModel;

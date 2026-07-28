@@ -60,6 +60,11 @@ SubjectSchema.index({ isActive: 1 });
 
 const cachedSubject = mongoose.models.Subject as Model<ISubject> | undefined;
 if (cachedSubject && !cachedSubject.schema.path('grades')) mongoose.deleteModel('Subject');
-const SubjectModel: Model<ISubject> = mongoose.models.Subject || mongoose.model<ISubject>('Subject', SubjectSchema);
+let SubjectModel: Model<ISubject>;
+try {
+  SubjectModel = mongoose.model<ISubject>('Subject');
+} catch {
+  SubjectModel = mongoose.model<ISubject>('Subject', SubjectSchema);
+}
 
 export default SubjectModel;

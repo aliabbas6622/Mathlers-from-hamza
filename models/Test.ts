@@ -137,6 +137,11 @@ TestSchema.index({ type: 1 });
 TestSchema.index({ isPublished: 1 });
 TestSchema.index({ publishDate: 1 });
 
-const TestModel: Model<ITest> = mongoose.models.Test || mongoose.model<ITest>('Test', TestSchema);
+let TestModel: Model<ITest>;
+try {
+  TestModel = mongoose.model<ITest>('Test');
+} catch {
+  TestModel = mongoose.model<ITest>('Test', TestSchema);
+}
 
 export default TestModel;

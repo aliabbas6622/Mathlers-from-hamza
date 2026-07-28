@@ -135,6 +135,11 @@ ResultSchema.index({ test: 1 });
 ResultSchema.index({ score: -1 });
 ResultSchema.index({ completedAt: -1 });
 
-const ResultModel: Model<IResult> = mongoose.models.Result || mongoose.model<IResult>('Result', ResultSchema);
+let ResultModel: Model<IResult>;
+try {
+  ResultModel = mongoose.model<IResult>('Result');
+} catch {
+  ResultModel = mongoose.model<IResult>('Result', ResultSchema);
+}
 
 export default ResultModel;

@@ -203,6 +203,11 @@ UserSchema.index({ role: 1 });
 UserSchema.index({ points: -1 });
 UserSchema.index({ nationalRank: 1 });
 
-const UserModel: Model<IUser> = mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
+let UserModel: Model<IUser>;
+try {
+  UserModel = mongoose.model<IUser>('User');
+} catch {
+  UserModel = mongoose.model<IUser>('User', UserSchema);
+}
 
 export default UserModel;

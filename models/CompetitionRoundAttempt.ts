@@ -55,7 +55,11 @@ const CompetitionRoundAttemptSchema = new Schema<ICompetitionRoundAttempt>({
 CompetitionRoundAttemptSchema.index({ competition: 1, student: 1, round: 1 }, { unique: true });
 CompetitionRoundAttemptSchema.index({ competition: 1, round: 1, score: -1, timeTaken: 1 });
 
-const CompetitionRoundAttemptModel: Model<ICompetitionRoundAttempt> = mongoose.models.CompetitionRoundAttempt
-  || mongoose.model<ICompetitionRoundAttempt>('CompetitionRoundAttempt', CompetitionRoundAttemptSchema);
+let CompetitionRoundAttemptModel: Model<ICompetitionRoundAttempt>;
+try {
+  CompetitionRoundAttemptModel = mongoose.model<ICompetitionRoundAttempt>('CompetitionRoundAttempt');
+} catch {
+  CompetitionRoundAttemptModel = mongoose.model<ICompetitionRoundAttempt>('CompetitionRoundAttempt', CompetitionRoundAttemptSchema);
+}
 
 export default CompetitionRoundAttemptModel;

@@ -39,6 +39,11 @@ const GradeSchema = new Schema<IGrade>(
 GradeSchema.index({ order: 1 });
 GradeSchema.index({ isActive: 1 });
 
-const GradeModel: Model<IGrade> = mongoose.models.Grade || mongoose.model<IGrade>('Grade', GradeSchema);
+let GradeModel: Model<IGrade>;
+try {
+  GradeModel = mongoose.model<IGrade>('Grade');
+} catch {
+  GradeModel = mongoose.model<IGrade>('Grade', GradeSchema);
+}
 
 export default GradeModel;

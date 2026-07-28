@@ -227,10 +227,13 @@ QuestionSchema.index({ status: 1 });
 QuestionSchema.index({ 'analytics.totalAttempts': -1 });
 QuestionSchema.index({ 'analytics.correctPercentage': -1 });
 
-if (process.env.NODE_ENV !== 'production' && mongoose.models.Question) {
-  delete mongoose.models.Question;
-}
 
-const QuestionModel: Model<IQuestion> = (mongoose.models.Question as Model<IQuestion>) || mongoose.model<IQuestion>('Question', QuestionSchema);
+
+let QuestionModel: Model<IQuestion>;
+try {
+  QuestionModel = mongoose.model<IQuestion>('Question');
+} catch {
+  QuestionModel = mongoose.model<IQuestion>('Question', QuestionSchema);
+}
 
 export default QuestionModel;

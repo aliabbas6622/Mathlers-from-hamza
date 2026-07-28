@@ -143,10 +143,13 @@ PracticeSetSchema.index({ isPublished: 1 });
 PracticeSetSchema.index({ 'availability.startDate': 1, 'availability.endDate': 1 });
 
 // In development, delete the cached model so schema changes are picked up on hot reload
-if (process.env.NODE_ENV !== 'production' && mongoose.models.PracticeSet) {
-  delete (mongoose.models as Record<string, unknown>).PracticeSet;
-}
 
-const PracticeSetModel: Model<IPracticeSet> = (mongoose.models.PracticeSet as Model<IPracticeSet>) || mongoose.model<IPracticeSet>('PracticeSet', PracticeSetSchema);
+
+let PracticeSetModel: Model<IPracticeSet>;
+try {
+  PracticeSetModel = mongoose.model<IPracticeSet>('PracticeSet');
+} catch {
+  PracticeSetModel = mongoose.model<IPracticeSet>('PracticeSet', PracticeSetSchema);
+}
 
 export default PracticeSetModel;

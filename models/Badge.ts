@@ -77,6 +77,11 @@ const BadgeSchema = new Schema<IBadge>(
 BadgeSchema.index({ type: 1 });
 BadgeSchema.index({ isActive: 1 });
 
-const BadgeModel: Model<IBadge> = mongoose.models.Badge || mongoose.model<IBadge>('Badge', BadgeSchema);
+let BadgeModel: Model<IBadge>;
+try {
+  BadgeModel = mongoose.model<IBadge>('Badge');
+} catch {
+  BadgeModel = mongoose.model<IBadge>('Badge', BadgeSchema);
+}
 
 export default BadgeModel;

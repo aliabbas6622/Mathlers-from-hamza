@@ -82,6 +82,11 @@ AnnouncementSchema.index({ targetAudience: 1 });
 AnnouncementSchema.index({ isActive: 1, publishDate: 1 });
 AnnouncementSchema.index({ expiryDate: 1 });
 
-const AnnouncementModel: Model<IAnnouncement> = mongoose.models.Announcement || mongoose.model<IAnnouncement>('Announcement', AnnouncementSchema);
+let AnnouncementModel: Model<IAnnouncement>;
+try {
+  AnnouncementModel = mongoose.model<IAnnouncement>('Announcement');
+} catch {
+  AnnouncementModel = mongoose.model<IAnnouncement>('Announcement', AnnouncementSchema);
+}
 
 export default AnnouncementModel;

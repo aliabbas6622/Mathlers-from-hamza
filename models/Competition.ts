@@ -387,6 +387,11 @@ CompetitionSchema.pre('save', function () {
   }
 });
 
-const CompetitionModel: Model<ICompetition> = mongoose.models.Competition || mongoose.model<ICompetition>('Competition', CompetitionSchema);
+let CompetitionModel: Model<ICompetition>;
+try {
+  CompetitionModel = mongoose.model<ICompetition>('Competition');
+} catch {
+  CompetitionModel = mongoose.model<ICompetition>('Competition', CompetitionSchema);
+}
 
 export default CompetitionModel;

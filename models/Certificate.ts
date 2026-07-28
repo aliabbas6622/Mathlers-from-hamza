@@ -93,6 +93,11 @@ CertificateSchema.index({ competition: 1 });
 CertificateSchema.index({ certificateId: 1 });
 CertificateSchema.index({ type: 1 });
 
-const CertificateModel: Model<ICertificate> = mongoose.models.Certificate || mongoose.model<ICertificate>('Certificate', CertificateSchema);
+let CertificateModel: Model<ICertificate>;
+try {
+  CertificateModel = mongoose.model<ICertificate>('Certificate');
+} catch {
+  CertificateModel = mongoose.model<ICertificate>('Certificate', CertificateSchema);
+}
 
 export default CertificateModel;

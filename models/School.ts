@@ -94,6 +94,11 @@ SchoolSchema.index({ coordinator: 1 });
 SchoolSchema.index({ totalStudents: -1 });
 SchoolSchema.index({ schoolRank: 1 });
 
-const SchoolModel: Model<ISchool> = mongoose.models.School || mongoose.model<ISchool>('School', SchoolSchema);
+let SchoolModel: Model<ISchool>;
+try {
+  SchoolModel = mongoose.model<ISchool>('School');
+} catch {
+  SchoolModel = mongoose.model<ISchool>('School', SchoolSchema);
+}
 
 export default SchoolModel;

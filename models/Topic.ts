@@ -75,10 +75,13 @@ TopicSchema.index({ subject: 1, grade: 1, chapter: 1, code: 1 });
 TopicSchema.index({ order: 1 });
 TopicSchema.index({ isActive: 1 });
 
-if (process.env.NODE_ENV !== 'production' && mongoose.models.Topic) {
-  delete mongoose.models.Topic;
-}
 
-const TopicModel: Model<ITopic> = (mongoose.models.Topic as Model<ITopic>) || mongoose.model<ITopic>('Topic', TopicSchema);
+
+let TopicModel: Model<ITopic>;
+try {
+  TopicModel = mongoose.model<ITopic>('Topic');
+} catch {
+  TopicModel = mongoose.model<ITopic>('Topic', TopicSchema);
+}
 
 export default TopicModel;

@@ -68,6 +68,11 @@ NotificationSchema.index({ recipient: 1, isRead: 1 });
 NotificationSchema.index({ type: 1 });
 NotificationSchema.index({ sentAt: -1 });
 
-const NotificationModel: Model<INotification> = mongoose.models.Notification || mongoose.model<INotification>('Notification', NotificationSchema);
+let NotificationModel: Model<INotification>;
+try {
+  NotificationModel = mongoose.model<INotification>('Notification');
+} catch {
+  NotificationModel = mongoose.model<INotification>('Notification', NotificationSchema);
+}
 
 export default NotificationModel;

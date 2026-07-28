@@ -27,6 +27,11 @@ const siteThemeSchema = new Schema<ISiteTheme>(
   { timestamps: true }
 );
 
-const SiteThemeModel: Model<ISiteTheme> = mongoose.models.SiteTheme || mongoose.model<ISiteTheme>('SiteTheme', siteThemeSchema);
+let SiteThemeModel: Model<ISiteTheme>;
+try {
+  SiteThemeModel = mongoose.model<ISiteTheme>('SiteTheme');
+} catch {
+  SiteThemeModel = mongoose.model<ISiteTheme>('SiteTheme', siteThemeSchema);
+}
 
 export default SiteThemeModel;
