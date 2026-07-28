@@ -2,8 +2,7 @@ import { auth } from '@/lib/auth/auth';
 import { redirect } from 'next/navigation';
 import connectDB from '@/lib/db/mongodb';
 import UserModel from '@/models/User';
-import ResultModel from '@/models/Result';
-import Card from '@/components/ui/Card';
+import LeaderboardClient from './LeaderboardClient';
 
 export default async function LeaderboardPage() {
   const session = await auth();
@@ -14,78 +13,79 @@ export default async function LeaderboardPage() {
 
   await connectDB();
 
-  const results = await ResultModel.find({})
-    .sort({ score: -1 })
-    .limit(50)
-    .populate('student');
+  // Fetch the logged-in user
+  const currentUser = await UserModel.findById(session.user.id).lean();
+  const hasSchool = !!currentUser?.school;
 
-  const leaderboard: any[] = [];
-  const userScores = new Map();
+  // 1. Fetch National Data
+  const topNational = await UserModel.find({ isActive: true, role: 'student' })
+    .sort({ points: -1 })
+    .limit(20)
+    .lean();
 
-  results.forEach((result: any) => {
-    const studentId = result.student?._id?.toString();
-    if (studentId) {
-      const currentScore = userScores.get(studentId) || 0;
-      userScores.set(studentId, currentScore + result.score);
-    }
-  });
+  const nationalLeaderboard = topNational.map((student: any) => ({
+    id: student._id.toString(),
+    name: student.fullName,
+    playerId: student.playerId,
+    score: student.points || 0,
+  }));
 
-  const students = await UserModel.find({ isActive: true }).limit(50);
+  let userNationalRank = null;
+  if (currentUser && currentUser.role === 'student') {
+    const studentsWithHigherPoints = await UserModel.countDocuments({
+      isActive: true,
+      role: 'student',
+      points: { $gt: currentUser.points || 0 },
+    });
+    userNationalRank = studentsWithHigherPoints + 1;
+  }
 
-  students.forEach((student: any) => {
-    leaderboard.push({
+  // 2. Fetch School Data
+  let schoolLeaderboard: any[] = [];
+  let userSchoolRank = null;
+
+  if (hasSchool) {
+    const topSchool = await UserModel.find({ 
+      isActive: true, 
+      role: 'student',
+      school: currentUser.school
+    })
+      .sort({ points: -1 })
+      .limit(20)
+      .lean();
+
+    schoolLeaderboard = topSchool.map((student: any) => ({
       id: student._id.toString(),
       name: student.fullName,
       playerId: student.playerId,
-      score: userScores.get(student._id.toString()) || 0,
-    });
-  });
+      score: student.points || 0,
+    }));
 
-  leaderboard.sort((a, b) => b.score - a.score);
-  leaderboard.slice(0, 20);
+    if (currentUser && currentUser.role === 'student') {
+      const schoolStudentsWithHigherPoints = await UserModel.countDocuments({
+        isActive: true,
+        role: 'student',
+        school: currentUser.school,
+        points: { $gt: currentUser.points || 0 },
+      });
+      userSchoolRank = schoolStudentsWithHigherPoints + 1;
+    }
+  }
 
-  const userRank = leaderboard.findIndex((u) => u.id === session.user.id) + 1;
+  // Serialize current user to pass to client
+  const safeCurrentUser = currentUser ? {
+    id: currentUser._id.toString(),
+    points: currentUser.points || 0,
+  } : null;
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Leaderboard</h1>
-
-      <Card className="p-6 mb-8 bg-gradient-to-r from-red-primary to-red-dark text-white">
-        <div className="text-center">
-          <p className="text-lg mb-2">Your Current Rank</p>
-          <p className="text-5xl font-bold mb-2">#{userRank || '-'}</p>
-          <p className="text-sm opacity-90">Keep practicing to improve your ranking!</p>
-        </div>
-      </Card>
-
-      <Card className="p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-6">Top Performers</h2>
-        <div className="space-y-3">
-          {leaderboard.map((entry, index) => (
-            <div
-              key={entry.id}
-              className={`flex items-center justify-between p-4 rounded-lg ${
-                entry.id === session.user.id ? 'bg-red-50 border-2 border-red-primary' : 'bg-gray-50'
-              }`}
-            >
-              <div className="flex items-center gap-4">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${
-                  index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : index === 2 ? 'bg-amber-600' : 'bg-gray-300'
-                }`}>
-                  {index + 1}
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-900">{entry.name}</p>
-                  <p className="text-sm text-gray-600">{entry.playerId}</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="font-bold text-gray-900">{entry.score} pts</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card>
-    </div>
+    <LeaderboardClient
+      nationalLeaderboard={nationalLeaderboard}
+      schoolLeaderboard={schoolLeaderboard}
+      userNationalRank={userNationalRank}
+      userSchoolRank={userSchoolRank}
+      currentUser={safeCurrentUser}
+      hasSchool={hasSchool}
+    />
   );
 }

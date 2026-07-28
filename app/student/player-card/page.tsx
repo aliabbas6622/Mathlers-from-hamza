@@ -19,8 +19,31 @@ export default async function PlayerCardPage() {
   const user = await UserModel.findById(session.user.id);
   const results = await ResultModel.find({ student: session.user.id });
 
-  const totalPoints = results.reduce((sum, r) => sum + (r.score || 0), 0);
-  const rank = Math.floor(Math.random() * 100) + 1;
+  const totalPoints = user?.points || 0;
+  const hasSchool = !!user?.school;
+  
+  let nationalRank = null;
+  let schoolRank = null;
+
+  if (user && user.role === 'student') {
+    const studentsWithHigherPoints = await UserModel.countDocuments({
+      isActive: true,
+      role: 'student',
+      points: { $gt: totalPoints },
+    });
+    nationalRank = studentsWithHigherPoints + 1;
+
+    if (hasSchool) {
+      const schoolStudentsWithHigherPoints = await UserModel.countDocuments({
+        isActive: true,
+        role: 'student',
+        school: user.school,
+        points: { $gt: totalPoints },
+      });
+      schoolRank = schoolStudentsWithHigherPoints + 1;
+    }
+  }
+
   const level = Math.floor(totalPoints / 1000) + 1;
 
   return (
@@ -29,21 +52,32 @@ export default async function PlayerCardPage() {
 
       <GlassCard className="p-8 bg-gradient-to-br from-brand-primary via-brand-light to-brand-dark text-white">
         {/* Card Header */}
-        <div className="flex items-center gap-6 mb-8">
-          <div className="w-32 h-32 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border-2 border-white/30">
-            <span className="text-5xl font-bold">{user?.fullName?.charAt(0) || 'M'}</span>
-          </div>
-          <div className="flex-1">
-            <h2 className="text-3xl font-bold mb-2">{user?.fullName}</h2>
-            <p className="text-lg opacity-90 mb-1">Player ID: {user?.playerId}</p>
-            <div className="flex items-center gap-2">
-              <Star className="w-5 h-5 text-yellow-300 fill-yellow-300" />
-              <span className="font-semibold">Level {level}</span>
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-6 mb-8 justify-between">
+          <div className="flex items-center gap-6">
+            <div className="w-32 h-32 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border-2 border-white/30">
+              <span className="text-5xl font-bold">{user?.fullName?.charAt(0) || 'M'}</span>
+            </div>
+            <div>
+              <h2 className="text-3xl font-bold mb-2">{user?.fullName}</h2>
+              <p className="text-lg opacity-90 mb-1">Player ID: {user?.playerId}</p>
+              <div className="flex items-center gap-2">
+                <Star className="w-5 h-5 text-yellow-300 fill-yellow-300" />
+                <span className="font-semibold">Level {level}</span>
+              </div>
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-sm opacity-90 mb-1">Global Rank</p>
-            <p className="text-4xl font-bold">#{rank}</p>
+          
+          <div className="flex gap-8 mt-4 md:mt-0">
+            <div className="text-center">
+              <p className="text-4xl font-bold">#{nationalRank}</p>
+              <p className="text-sm opacity-90 uppercase tracking-wider mt-1">National Rank</p>
+            </div>
+            {hasSchool && (
+              <div className="text-center">
+                <p className="text-4xl font-bold">#{schoolRank}</p>
+                <p className="text-sm opacity-90 uppercase tracking-wider mt-1">School Rank</p>
+              </div>
+            )}
           </div>
         </div>
 
