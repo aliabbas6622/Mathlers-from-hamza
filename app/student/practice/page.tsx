@@ -2,7 +2,7 @@ import { auth } from '@/lib/auth/auth';
 import { redirect } from 'next/navigation';
 import connectDB from '@/lib/db/mongodb';
 import PracticeSetModel, { IPracticeSet } from '@/models/PracticeSet';
-import type { FilterQuery } from 'mongoose';
+
 import GlassCard from '@/components/ui/GlassCard';
 
 import { BookOpen, Target, Clock, Filter } from 'lucide-react';
@@ -38,27 +38,22 @@ export default async function PracticePage({
   await connectDB();
 
   const now = new Date();
-  const query: FilterQuery<IPracticeSet> = {
-    isPublished: true,
-    $or: [
-      { 'availability.startDate': { $exists: false } },
-      { 'availability.startDate': { $lte: now } }
-    ],
-    $and: [
-      { $or: [{ 'availability.endDate': { $exists: false } }, { 'availability.endDate': { $gte: now } }] }
-    ]
-  };
-
-  if (resolvedSearchParams.subject) {
-    query.subject = resolvedSearchParams.subject as unknown as IPracticeSet['subject'];
-  }
-  
-  if (resolvedSearchParams.difficulty && resolvedSearchParams.difficulty !== 'all') {
-    query.difficulty = resolvedSearchParams.difficulty as IPracticeSet['difficulty'];
-  }
 
   const [practiceSets, subjects] = await Promise.all([
-    PracticeSetModel.find(query)
+    PracticeSetModel.find({
+      isPublished: true,
+      $or: [
+        { 'availability.startDate': { $exists: false } },
+        { 'availability.startDate': { $lte: now } },
+      ],
+      $and: [
+        { $or: [{ 'availability.endDate': { $exists: false } }, { 'availability.endDate': { $gte: now } }] },
+      ],
+      ...(resolvedSearchParams.subject ? { subject: resolvedSearchParams.subject } : {}),
+      ...(resolvedSearchParams.difficulty && resolvedSearchParams.difficulty !== 'all'
+        ? { difficulty: resolvedSearchParams.difficulty as IPracticeSet['difficulty'] }
+        : {}),
+    })
       .populate('subject', 'name')
       .populate('grade', 'name')
       .select('name description difficulty type subject grade questions timeLimit')
