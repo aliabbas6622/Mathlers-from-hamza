@@ -1,0 +1,29 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./*"],
+      "@mathlers/models": ["../../packages/models/src"],
+      "@mathlers/models/*": ["../../packages/models/src/*"],
+      "@mathlers/constants": ["../../packages/constants/src"],
+      "@mathlers/constants/*": ["../../packages/constants/src/*"],
+      "@mathlers/lib": ["../../packages/lib/src"],
+      "@mathlers/lib/*": ["../../packages/lib/src/*"],
+      "@mathlers/ui": ["../../packages/ui/src"],
+      "@mathlers/ui/*": ["../../packages/ui/src/*"],
+      "@mathlers/hooks": ["../../packages/hooks/src"],
+      "@mathlers/hooks/*": ["../../packages/hooks/src/*"],
+      "@mathlers/stores": ["../../packages/stores/src"],
+      "@mathlers/stores/*": ["../../packages/stores/src/*"],
+      "@mathlers/services": ["../../packages/services/src"],
+      "@mathlers/services/*": ["../../packages/services/src/*"]
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", ".next/dev/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}

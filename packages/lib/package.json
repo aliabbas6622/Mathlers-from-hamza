@@ -1,0 +1,34 @@
+{
+  "name": "@mathlers/lib",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./db": "./src/db/mongodb.ts",
+    "./auth": "./src/auth.ts",
+    "./theme": "./src/theme/palette.ts",
+    "./theme/site": "./src/theme/siteTheme.ts",
+    "./utils": "./src/utils/index.ts",
+    "./security": "./src/security/rate-limit.ts",
+    "./questions": "./src/questions/payload.ts",
+    "./questions/validate-links": "./src/questions/validateLinks.ts",
+    "./competition": "./src/competition/championship.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@clerk/nextjs": "^7.6.2",
+    "@mathlers/models": "*",
+    "clsx": "^2.1.1",
+    "mongoose": "^9.8.0",
+    "tailwind-merge": "^2.6.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5"
+  }
+}

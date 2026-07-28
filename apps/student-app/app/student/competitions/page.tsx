@@ -1,0 +1,60 @@
+import { auth } from '@mathlers/lib/auth';
+import { redirect } from 'next/navigation';
+import connectDB from '@mathlers/lib/db';
+import CompetitionModel, { CompetitionStatus } from '@mathlers/models/Competition';
+import EnrollmentModel from '@mathlers/models/Enrollment';
+import StudentCompetitionCenter, { CompetitionCard, EnrollmentSummary } from './StudentCompetitionCenter';
+import { isValidObjectId } from '@mathlers/lib/utils';
+
+export default async function CompetitionsPage() {
+  const session = await auth();
+  
+  if (!session) {
+    redirect('/sign-in');
+  }
+
+  await connectDB();
+
+  const hasValidId = isValidObjectId(session.user.id);
+  const rawEnrollments = hasValidId 
+    ? await EnrollmentModel.find({ student: session.user.id }) 
+    : [];
+
+  const enrollments = JSON.parse(JSON.stringify(rawEnrollments)) as Array<EnrollmentSummary & { competition: string }>;
+
+  const enrollmentMap: Record<string, EnrollmentSummary> = {};
+  const enrolledCompIds: string[] = [];
+
+  enrollments.forEach((e) => {
+    const compId = e.competition.toString();
+    enrollmentMap[compId] = e;
+    enrolledCompIds.push(compId);
+  });
+
+  const publicStatuses = [
+    CompetitionStatus.REGISTRATION_OPEN,
+    CompetitionStatus.REGISTRATION_CLOSED,
+    CompetitionStatus.IN_PROGRESS,
+    CompetitionStatus.PAUSED,
+    CompetitionStatus.COMPLETED,
+  ];
+  const rawCompetitions = await CompetitionModel.find({
+    $or: [
+      { status: { $in: publicStatuses } },
+      ...(enrolledCompIds.length ? [{ _id: { $in: enrolledCompIds } }] : []),
+    ],
+  }).sort({ 'schedule.competitionStartDate': 1 });
+
+  const competitions = JSON.parse(JSON.stringify(rawCompetitions)) as CompetitionCard[];
+
+  const enrolledCompetitions = competitions.filter((competition) => enrolledCompIds.includes(competition._id.toString()));
+
+  return (
+    <StudentCompetitionCenter
+      competitions={competitions}
+      enrolledCompetitions={enrolledCompetitions}
+      enrollmentMap={enrollmentMap}
+      studentName={session.user.name || 'Student'}
+    />
+  );
+}

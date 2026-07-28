@@ -1,0 +1,1 @@
+{"extends":"../../tsconfig.base.json","compilerOptions":{"outDir":"./dist","rootDir":"./src","paths":{"@mathlers/lib":["../lib/src"],"@mathlers/lib/*":["../lib/src/*"],"@mathlers/models":["../models/src"]}},"include":["src"]}
