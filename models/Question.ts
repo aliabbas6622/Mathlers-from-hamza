@@ -1,5 +1,5 @@
 import mongoose, { Schema, Model } from 'mongoose';
-import baseSchema, { BaseDocument } from './Base';
+import { BaseDocument } from './Base';
 
 export enum Difficulty {
   EASY = 'easy',
@@ -227,7 +227,7 @@ QuestionSchema.index({ status: 1 });
 QuestionSchema.index({ 'analytics.totalAttempts': -1 });
 QuestionSchema.index({ 'analytics.correctPercentage': -1 });
 
-if (mongoose.models.Question) {
+if (process.env.NODE_ENV !== 'production' && mongoose.models.Question) {
   delete mongoose.models.Question;
 }
 

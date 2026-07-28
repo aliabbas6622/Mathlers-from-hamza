@@ -1,186 +1,49 @@
 'use client';
 
+import Link from 'next/link';
+import { ArrowRight, BookOpen, School, Trophy } from 'lucide-react';
 import PublicLayout from '@/components/layouts/PublicLayout';
-import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
-import { Trophy, Target, BookOpen, Users, TrendingUp, Award, ArrowRight } from 'lucide-react';
+
+const features = [
+  { icon: BookOpen, title: 'Focused practice', description: 'Practice mathematics by grade, topic, and skill.' },
+  { icon: Trophy, title: 'Competition operations', description: 'Enroll, follow rulebooks, and complete scheduled competition rounds.' },
+  { icon: School, title: 'School access', description: 'Schools provision student accounts and manage their own teachers.' },
+];
 
 export default function LandingPage() {
   return (
     <PublicLayout>
-      {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center pt-32 pb-20 px-6 overflow-hidden">
-        {/* Background decorative elements */}
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-red-primary/20 rounded-full blur-[100px] -z-10 animate-pulse"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-red-400/20 rounded-full blur-[100px] -z-10 animate-pulse" style={{ animationDelay: '1s' }}></div>
-        
-        <div className="w-full max-w-5xl mx-auto text-center z-10 animate-fade-in">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card mb-8 text-red-600 font-medium text-sm">
-            <Award className="w-4 h-4" />
-            <span>The #1 Mathematics Platform</span>
+      <main>
+        <section className="border-b border-gray-200 bg-white px-6 py-24 sm:py-32">
+          <div className="mx-auto max-w-4xl text-center">
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-brand-primary">Mathlers</p>
+            <h1 className="mt-4 text-4xl font-bold tracking-tight text-gray-950 sm:text-6xl">Mathematics, made ready for competition.</h1>
+            <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-gray-600">A school-provisioned platform for structured practice and secure mathematics competitions.</p>
+            <div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row">
+              <Link href="/sign-in" className="inline-flex items-center justify-center gap-2 rounded-xl border border-transparent bg-brand-primary px-5 py-3 font-semibold text-white transition-colors hover:border-brand-dark hover:bg-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2">Sign in <ArrowRight className="h-4 w-4" /></Link>
+              <Link href="/request-access" className="inline-flex items-center justify-center rounded-xl border border-transparent px-5 py-3 font-semibold text-brand-primary transition-colors hover:border-brand-primary hover:bg-brand-lighter focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2">Request organization access</Link>
+            </div>
           </div>
-          <h1 className="text-6xl md:text-8xl font-extrabold text-gray-900 mb-6 leading-tight">
-            Master Mathematics <br/> with{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-600 to-red-400">
-              Mathlers
-            </span>
-          </h1>
-          <p className="text-xl md:text-2xl text-gray-600 mb-10 max-w-2xl mx-auto leading-relaxed">
-            Practice, Compete, and Excel in Mathematics with our highly engaging and competitive learning platform.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
-            <Button className="glass-button text-white px-10 py-4 text-lg font-semibold flex items-center gap-2">
-              Start Learning <ArrowRight className="w-5 h-5" />
-            </Button>
-            <Button variant="outline" className="px-10 py-4 text-lg font-semibold border-2 border-red-200 text-red-600 hover:bg-red-50 rounded-xl transition-all">
-              View Competitions
-            </Button>
-          </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Features Section */}
-      <section id="features" className="py-24 px-6 relative">
-        <div className="w-full max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              Why Choose Mathlers?
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Everything you need to improve your mathematical skills in one place.
-            </p>
+        <section id="features" className="bg-gray-50 px-6 py-20">
+          <div className="mx-auto max-w-6xl">
+            <div className="max-w-2xl"><p className="text-sm font-semibold uppercase tracking-[0.16em] text-brand-primary">Built for schools</p><h2 className="mt-3 text-3xl font-bold text-gray-950">One clear path from practice to event day.</h2></div>
+            <div className="mt-10 grid gap-4 md:grid-cols-3">
+              {features.map(({ icon: Icon, title, description }) => <article key={title} className="rounded-xl border border-gray-200 bg-white p-6"><Icon className="h-5 w-5 text-brand-primary" /><h3 className="mt-5 text-lg font-bold text-gray-950">{title}</h3><p className="mt-2 text-sm leading-6 text-gray-600">{description}</p></article>)}
+            </div>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[
-              { icon: Target, title: "Structured Practice", desc: "Chapter-wise and topic-wise practice sets designed for effective learning." },
-              { icon: Trophy, title: "Competitions", desc: "Participate in daily, weekly, and national competitions to test your skills." },
-              { icon: TrendingUp, title: "Progress Tracking", desc: "Detailed analytics to track your improvement and identify areas for growth." },
-              { icon: Award, title: "Achievements", desc: "Earn badges, certificates, and build your digital Mathlers identity." },
-              { icon: Users, title: "Leaderboards", desc: "Compete with students nationwide and climb the rankings." },
-              { icon: BookOpen, title: "Comprehensive Content", desc: "Extensive question bank covering all grades and topics." }
-            ].map((feature, i) => (
-              <div key={i} className="glass-card p-8 text-center hover:-translate-y-2 transition-all duration-300 group">
-                <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:bg-red-600 transition-colors duration-300">
-                  <feature.icon className="w-8 h-8 text-red-600 group-hover:text-white transition-colors duration-300" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3">{feature.title}</h3>
-                <p className="text-gray-600 leading-relaxed">{feature.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Journey Section */}
-      <section id="journey" className="py-24 px-6 bg-gradient-to-b from-white to-red-50/50">
-        <div className="w-full max-w-5xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              Your Competition Journey
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Four simple steps to mastery.
-            </p>
+        <section id="access" className="border-y border-gray-200 bg-white px-6 py-20">
+          <div className="mx-auto grid max-w-6xl gap-10 md:grid-cols-[1fr_2fr]">
+            <div><p className="text-sm font-semibold uppercase tracking-[0.16em] text-brand-primary">How access works</p><h2 className="mt-3 text-3xl font-bold text-gray-950">No public student sign-up.</h2></div>
+            <ol className="space-y-5 text-gray-700"><li className="flex gap-4"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-lighter text-sm font-bold text-brand-primary">1</span><span><strong className="text-gray-950">A developer creates the school.</strong><br />School administrators are provisioned with their organization.</span></li><li className="flex gap-4"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-lighter text-sm font-bold text-brand-primary">2</span><span><strong className="text-gray-950">The school provisions teachers and students.</strong><br />Credentials can be securely exported for distribution.</span></li><li className="flex gap-4"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-lighter text-sm font-bold text-brand-primary">3</span><span><strong className="text-gray-950">Students sign in and participate.</strong><br />Their school and competition eligibility remain enforced throughout.</span></li></ol>
           </div>
+        </section>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {[
-              { step: 1, title: "Register", desc: "Create your account and get your unique Mathlers Player ID." },
-              { step: 2, title: "Practice", desc: "Complete daily challenges and practice sets to improve your skills." },
-              { step: 3, title: "Compete", desc: "Join competitions and test your knowledge against other students." },
-              { step: 4, title: "Achieve", desc: "Earn certificates, badges, and climb the leaderboards." }
-            ].map((item, i) => (
-              <div key={i} className="glass-card p-8 flex items-start gap-6 hover:shadow-lg transition-all duration-300">
-                <div className="w-14 h-14 bg-gradient-to-br from-red-500 to-red-700 rounded-2xl flex items-center justify-center text-white text-2xl font-bold flex-shrink-0 shadow-md">
-                  {item.step}
-                </div>
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">{item.title}</h3>
-                  <p className="text-gray-600 text-lg leading-relaxed">{item.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Statistics Section */}
-      <section className="py-20 px-6 relative">
-        <div className="absolute inset-0 bg-red-900/5 -z-10"></div>
-        <div className="w-full max-w-7xl mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {[
-              { val: "10,000+", label: "Active Students" },
-              { val: "500+", label: "Schools" },
-              { val: "50,000+", label: "Questions" },
-              { val: "100+", label: "Competitions" }
-            ].map((stat, i) => (
-              <div key={i} className="text-center p-6">
-                <p className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-red-600 to-red-400 mb-2">{stat.val}</p>
-                <p className="text-lg text-gray-600 font-medium">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* FAQ Section */}
-      <section id="faq" className="py-24 px-6">
-        <div className="w-full max-w-4xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              Frequently Asked Questions
-            </h2>
-          </div>
-          <div className="space-y-6">
-            {[
-              { q: "Is Mathlers free to use?", a: "Yes, Mathlers offers free registration and access to basic practice sets. Premium features are available for advanced users." },
-              { q: "What grades does Mathlers support?", a: "Mathlers supports students from Grade 1 to Grade 12, covering all major mathematics topics." },
-              { q: "How do I participate in competitions?", a: "Register for an account, browse upcoming competitions, and enroll before the registration deadline. Make sure to read the rulebook before joining." },
-              { q: "Can schools register on Mathlers?", a: "Yes, schools can register and have coordinators manage their students, track performance, and participate in school-specific competitions." }
-            ].map((faq, i) => (
-              <div key={i} className="glass-card p-6 md:p-8 hover:border-red-300 transition-colors">
-                <h3 className="text-xl font-bold text-gray-900 mb-3">{faq.q}</h3>
-                <p className="text-gray-600 text-lg leading-relaxed">{faq.a}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Contact Section */}
-      <section id="contact" className="py-24 px-6 bg-gradient-to-b from-white to-red-50/30">
-        <div className="w-full max-w-2xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              Contact Us
-            </h2>
-            <p className="text-xl text-gray-600">Have questions? We'd love to hear from you.</p>
-          </div>
-          <div className="glass-card p-8 md:p-10 shadow-xl">
-            <form className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
-                  <input type="text" className="glass-input w-full px-4 py-3 bg-white/50" placeholder="Your name" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                  <input type="email" className="glass-input w-full px-4 py-3 bg-white/50" placeholder="your@email.com" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Message</label>
-                <textarea rows={5} className="glass-input w-full px-4 py-3 bg-white/50 resize-none" placeholder="How can we help you?" />
-              </div>
-              <Button className="glass-button w-full py-4 text-lg font-bold text-white shadow-lg hover:shadow-red-500/30">
-                Send Message
-              </Button>
-            </form>
-          </div>
-        </div>
-      </section>
+        <section id="contact" className="bg-gray-50 px-6 py-20 text-center"><div className="mx-auto max-w-2xl"><h2 className="text-3xl font-bold text-gray-950">Need access for your school?</h2><p className="mt-3 text-gray-600">Contact Mathlers to set up your organization workspace.</p><a href="mailto:info@mathlers.com?subject=Mathlers%20organization%20access%20request" className="mt-6 inline-flex rounded-xl border border-transparent bg-brand-primary px-5 py-3 font-semibold text-white transition-colors hover:border-brand-dark hover:bg-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2">Email Mathlers support</a></div></section>
+      </main>
     </PublicLayout>
   );
 }

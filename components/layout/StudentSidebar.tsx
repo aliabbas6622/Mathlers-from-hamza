@@ -9,6 +9,7 @@ import {
   Award, FileText, Bell, Settings 
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { UserButton } from '@clerk/nextjs';
 
 const menuItems = [
   { icon: Home, label: 'Dashboard', href: '/student/dashboard' },
@@ -27,7 +28,7 @@ export default function StudentSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed left-0 top-0 z-50 flex h-dvh w-64 flex-col overflow-hidden border-r border-gray-200/50 bg-white/80 backdrop-blur-xl">
+    <aside className="fixed left-0 top-0 z-50 flex h-dvh w-64 flex-col overflow-hidden border-r border-gray-200 bg-white">
       <div className="flex min-h-0 flex-1 flex-col p-6">
         <Link href="/student/dashboard" className="mb-8 flex shrink-0 items-center gap-3">
           <div className="w-10 h-10 bg-brand-primary rounded-xl flex items-center justify-center">
@@ -36,7 +37,7 @@ export default function StudentSidebar() {
           <span className="text-2xl font-bold text-gray-900">Mathlers</span>
         </Link>
 
-        <nav className="min-h-0 flex-1 space-y-2 overflow-y-auto pb-2 pr-1 overscroll-contain">
+        <nav className="scrollbar-hide min-h-0 flex-1 space-y-2 overflow-y-auto pb-2 pr-1 overscroll-contain">
           {menuItems.map((item) => {
             const isActive = pathname === item.href;
             const Icon = item.icon;
@@ -46,10 +47,10 @@ export default function StudentSidebar() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300',
+                  'flex items-center gap-3 rounded-xl border border-transparent px-4 py-3 transition-colors',
                   isActive
-                    ? 'bg-brand-primary text-white shadow-lg'
-                    : 'text-gray-700 hover:bg-brand-lighter hover:text-brand-primary'
+                    ? 'bg-brand-primary text-white'
+                    : 'text-gray-700 hover:border-gray-200 hover:bg-brand-lighter hover:text-brand-primary'
                 )}
               >
                 <Icon className="w-5 h-5" />
@@ -58,6 +59,10 @@ export default function StudentSidebar() {
             );
           })}
         </nav>
+        <div className="mt-4 flex items-center gap-3 border-t border-gray-100 pt-4">
+          <UserButton />
+          <span className="text-sm font-medium text-gray-600">Account</span>
+        </div>
       </div>
     </aside>
   );

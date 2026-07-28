@@ -1,15 +1,18 @@
 import { auth } from '@/lib/auth/auth';
 import { redirect } from 'next/navigation';
-import Link from 'next/link';
 import connectDB from '@/lib/db/mongodb';
 import PracticeSetModel from '@/models/PracticeSet';
-import SubjectModel from '@/models/Subject';
 import GlassCard from '@/components/ui/GlassCard';
-import PrimaryButton from '@/components/ui/PrimaryButton';
+
 import { BookOpen, Target, Clock, Filter } from 'lucide-react';
+import SubjectModel from '@/models/Subject';
+import Link from 'next/link';
 
 type ListItem = { _id: { toString(): string }; name: string };
-type PracticeSetItem = ListItem & {
+
+type PracticeSetItem = {
+  _id: { toString(): string };
+  name: string;
   description?: string;
   difficulty?: 'easy' | 'medium' | 'hard' | 'mixed' | 'all';
   type?: string;
@@ -28,14 +31,20 @@ export default async function PracticePage({
   const session = await auth();
   
   if (!session) {
-    redirect('/login');
+    redirect('/sign-in');
   }
 
   await connectDB();
 
   const now = new Date();
-  
-  const query: any = {
+  type FilterQuery = {
+    isPublished: boolean;
+    $or?: Array<Record<string, unknown>>;
+    $and?: Array<Record<string, unknown>>;
+    subject?: string;
+    difficulty?: string;
+  };
+  const query: FilterQuery = {
     isPublished: true,
     $or: [
       { 'availability.startDate': { $exists: false } },
@@ -143,9 +152,7 @@ export default async function PracticePage({
                 </div>
               </div>
 
-              <Link href={`/student/practice/${set._id}`}>
-                <PrimaryButton className="w-full">Start Practice</PrimaryButton>
-              </Link>
+              <a href={`/student/practice/${set._id}`} className="inline-flex w-full justify-center rounded-xl border border-transparent bg-brand-primary px-6 py-3 font-semibold text-white transition-colors hover:border-brand-dark hover:bg-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2">Start Practice</a>
             </GlassCard>
           ))}
         </div>

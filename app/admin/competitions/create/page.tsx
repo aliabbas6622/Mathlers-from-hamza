@@ -28,6 +28,17 @@ interface SectionData {
   questions: string[];
 }
 
+interface RoundData {
+  name: string;
+  type: 'qualifier' | 'quarter_final' | 'semi_final' | 'final' | 'custom';
+  startDate: string;
+  endDate: string;
+  topN: string;
+  minimumScore: string;
+  minimumPercentage: string;
+  sections: SectionData[];
+}
+
 interface FormData {
   // Step 1
   name: string;
@@ -81,6 +92,13 @@ const defaultSection: SectionData = {
   questions: [],
 };
 
+const defaultRound = (roundNumber: number): RoundData => ({
+  name: roundNumber === 1 ? 'Qualifier' : `Round ${roundNumber}`,
+  type: roundNumber === 1 ? 'qualifier' : 'custom',
+  startDate: '', endDate: '', topN: roundNumber === 1 ? '100' : '', minimumScore: '', minimumPercentage: '',
+  sections: [{ ...defaultSection }],
+});
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function CreateCompetitionPage() {
@@ -88,7 +106,9 @@ export default function CreateCompetitionPage() {
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [createdAccessCode, setCreatedAccessCode] = useState('');
   const [modalSectionIdx, setModalSectionIdx] = useState<number | null>(null);
+  const [modalRoundTarget, setModalRoundTarget] = useState<{ roundIndex: number; sectionIndex: number } | null>(null);
 
   const [formData, setFormData] = useState<FormData>({
     name: '', category: 'public', description: '', organizer: '', contact: '',
@@ -101,6 +121,7 @@ export default function CreateCompetitionPage() {
   });
 
   const [sections, setSections] = useState<SectionData[]>([{ ...defaultSection }]);
+  const [rounds, setRounds] = useState<RoundData[]>([defaultRound(1)]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -128,6 +149,17 @@ export default function CreateCompetitionPage() {
     if (sections.length > 1) setSections(prev => prev.filter((_, i) => i !== idx));
   };
 
+  const updateRound = (roundIndex: number, field: keyof Omit<RoundData, 'sections'>, value: string) => {
+    setRounds(prev => prev.map((round, index) => index === roundIndex ? { ...round, [field]: value } : round));
+  };
+  const updateRoundSection = (roundIndex: number, sectionIndex: number, field: string, value: string | boolean | string[]) => {
+    setRounds(prev => prev.map((round, index) => index === roundIndex ? { ...round, sections: round.sections.map((section, current) => current === sectionIndex ? { ...section, [field]: value } : section) } : round));
+  };
+  const addRound = () => setRounds(prev => [...prev, defaultRound(prev.length + 1)]);
+  const removeRound = (roundIndex: number) => { if (rounds.length > 1) setRounds(prev => prev.filter((_, index) => index !== roundIndex)); };
+  const addRoundSection = (roundIndex: number) => setRounds(prev => prev.map((round, index) => index === roundIndex ? { ...round, sections: [...round.sections, { ...defaultSection, name: `Section ${round.sections.length + 1}` }] } : round));
+  const removeRoundSection = (roundIndex: number, sectionIndex: number) => setRounds(prev => prev.map((round, index) => index === roundIndex && round.sections.length > 1 ? { ...round, sections: round.sections.filter((_, current) => current !== sectionIndex) } : round));
+
   const next = () => { setError(''); setStep(s => Math.min(s + 1, STEPS.length - 1)); };
   const prev = () => { setError(''); setStep(s => Math.max(s - 1, 0)); };
 
@@ -139,7 +171,7 @@ export default function CreateCompetitionPage() {
         ...formData,
         grades: formData.grades.length > 0 ? formData.grades : ['All'],
         maxParticipants: Number(formData.maxParticipants),
-        sections: sections.map((s, i) => ({
+        sections: formData.category === 'championship' ? [] : sections.map((s, i) => ({
           name: s.name,
           description: s.description,
           order: i,
@@ -157,6 +189,12 @@ export default function CreateCompetitionPage() {
             reviewAllowed: s.reviewAllowed,
           },
         })),
+        rounds: formData.category === 'championship' ? rounds.map((round, roundIndex) => ({
+          name: round.name, type: round.type, roundNumber: roundIndex + 1,
+          schedule: { startDate: round.startDate, endDate: round.endDate },
+          qualificationCriteria: { topN: round.topN, minimumScore: round.minimumScore, minimumPercentage: round.minimumPercentage },
+          sections: round.sections.map((s, sectionIndex) => ({ name: s.name, description: s.description, order: sectionIndex, questions: s.questions || [], settings: { duration: Number(s.duration), totalMarks: Number(s.totalMarks), passingMarks: Number(s.passingMarks), negativeMarking: s.negativeMarking, negativeMarkValue: Number(s.negativeMarkValue), shuffleQuestions: s.shuffleQuestions, shuffleOptions: s.shuffleOptions, calculatorAllowed: s.calculatorAllowed, skipAllowed: s.skipAllowed, reviewAllowed: s.reviewAllowed } })),
+        })) : [],
       };
 
       const res = await fetch('/api/admin/competitions', {
@@ -171,16 +209,32 @@ export default function CreateCompetitionPage() {
         throw new Error(msg);
       }
 
-      router.push('/admin/competitions');
-      router.refresh();
-    } catch (err: any) {
-      setError(err.message);
+      const created = await res.json() as { accessCode?: string };
+      if (created.accessCode) {
+        setCreatedAccessCode(created.accessCode);
+      } else {
+        router.push('/admin/competitions');
+        router.refresh();
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create competition');
     } finally {
       setLoading(false);
     }
   };
 
   // ─── Render ──────────────────────────────────────────────────────────────
+
+  if (createdAccessCode) {
+    return (
+      <div className="mx-auto max-w-xl space-y-6 rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm">
+        <h1 className="text-2xl font-bold text-gray-900">Competition created</h1>
+        <p className="text-gray-600">Save this access code now. It is shown once so you can distribute it only to eligible participants.</p>
+        <code className="block rounded-xl bg-gray-100 px-4 py-3 text-xl font-bold tracking-wider text-gray-900">{createdAccessCode}</code>
+        <PrimaryButton onClick={() => router.push('/admin/competitions')}>View competitions</PrimaryButton>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
@@ -231,7 +285,7 @@ export default function CreateCompetitionPage() {
                 className="glass-input w-full px-4 py-3 text-gray-900 rounded-xl border border-gray-200 focus:border-brand-primary outline-none">
                 <option value="public">🌍 Public Competition</option>
                 <option value="grade">🏫 Grade Competition</option>
-                <option value="championship">🥊 Championship</option>
+                <option value="championship">🥊 Championship (multi-round)</option>
               </select>
             </div>
             <Input label="Organizer" name="organizer" value={formData.organizer} onChange={handleChange} required />
@@ -326,7 +380,7 @@ export default function CreateCompetitionPage() {
           </div>
           {formData.registrationType === 'access_code' && (
             <p className="text-sm text-gray-500 bg-blue-50 p-3 rounded-lg">
-              📌 An access code (e.g. <strong>MTH-G7-4832</strong>) will be auto-generated when the competition is published.
+              A secure access code will be generated when you create this competition. Save it before leaving the confirmation screen.
             </p>
           )}
         </GlassCard>
@@ -351,7 +405,7 @@ export default function CreateCompetitionPage() {
       )}
 
       {/* Step 5 — Sections */}
-      {step === 4 && (
+      {step === 4 && formData.category !== 'championship' && (
         <div className="space-y-6">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold text-gray-900">Competition Sections</h2>
@@ -430,6 +484,36 @@ export default function CreateCompetitionPage() {
               sectionName={sections[modalSectionIdx]?.name || `Section ${modalSectionIdx + 1}`}
             />
           )}
+        </div>
+      )}
+
+      {step === 4 && formData.category === 'championship' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between gap-4">
+            <div><h2 className="text-xl font-semibold text-gray-900">Championship rounds</h2><p className="mt-1 text-sm text-gray-500">Rounds run in schedule order. Every non-final round needs at least one qualification rule.</p></div>
+            <PrimaryButton type="button" variant="secondary" onClick={addRound}><Plus className="mr-2 h-4 w-4" />Add round</PrimaryButton>
+          </div>
+          {rounds.map((round, roundIndex) => (
+            <GlassCard key={roundIndex} className="space-y-5 p-6">
+              <div className="flex items-center justify-between"><h3 className="font-bold text-gray-900">Round {roundIndex + 1}</h3>{rounds.length > 1 && <button type="button" onClick={() => removeRound(roundIndex)} className="rounded-lg p-2 text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" /></button>}</div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <Input label="Round name" value={round.name} onChange={(event) => updateRound(roundIndex, 'name', event.target.value)} required />
+                <label className="block text-sm font-medium text-gray-700">Round type<select value={round.type} onChange={(event) => updateRound(roundIndex, 'type', event.target.value)} className="mt-2 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-gray-900"><option value="qualifier">Qualifier</option><option value="quarter_final">Quarter-final</option><option value="semi_final">Semi-final</option><option value="final">Final</option><option value="custom">Custom</option></select></label>
+                <Input label="Round starts" type="datetime-local" value={round.startDate} onChange={(event) => updateRound(roundIndex, 'startDate', event.target.value)} required />
+                <Input label="Round ends" type="datetime-local" value={round.endDate} onChange={(event) => updateRound(roundIndex, 'endDate', event.target.value)} required />
+              </div>
+              {roundIndex < rounds.length - 1 && <div className="grid grid-cols-1 gap-4 rounded-xl bg-gray-50 p-4 md:grid-cols-3"><Input label="Qualify top N (optional)" type="number" value={round.topN} onChange={(event) => updateRound(roundIndex, 'topN', event.target.value)} /><Input label="Minimum score (optional)" type="number" value={round.minimumScore} onChange={(event) => updateRound(roundIndex, 'minimumScore', event.target.value)} /><Input label="Minimum percentage (optional)" type="number" value={round.minimumPercentage} onChange={(event) => updateRound(roundIndex, 'minimumPercentage', event.target.value)} /></div>}
+              <div className="flex items-center justify-between border-t border-gray-100 pt-4"><h4 className="font-semibold text-gray-900">Round sections</h4><PrimaryButton type="button" variant="secondary" onClick={() => addRoundSection(roundIndex)}><Plus className="mr-2 h-4 w-4" />Add section</PrimaryButton></div>
+              {round.sections.map((section, sectionIndex) => (
+                <div key={sectionIndex} className="space-y-4 rounded-xl border border-gray-200 p-4">
+                  <div className="flex justify-between"><p className="font-medium text-gray-900">Section {sectionIndex + 1}</p>{round.sections.length > 1 && <button type="button" onClick={() => removeRoundSection(roundIndex, sectionIndex)} className="text-sm text-red-600">Remove</button>}</div>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-4"><Input label="Name" value={section.name} onChange={(event) => updateRoundSection(roundIndex, sectionIndex, 'name', event.target.value)} required /><Input label="Duration (mins)" type="number" value={section.duration} onChange={(event) => updateRoundSection(roundIndex, sectionIndex, 'duration', event.target.value)} required /><Input label="Total marks" type="number" value={section.totalMarks} onChange={(event) => updateRoundSection(roundIndex, sectionIndex, 'totalMarks', event.target.value)} required /><Input label="Passing marks" type="number" value={section.passingMarks} onChange={(event) => updateRoundSection(roundIndex, sectionIndex, 'passingMarks', event.target.value)} required /></div>
+                  <div className="flex items-center justify-between rounded-xl bg-gray-50 p-3"><span className="text-sm text-gray-600">{section.questions.length} question(s) selected</span><PrimaryButton type="button" variant="secondary" onClick={() => setModalRoundTarget({ roundIndex, sectionIndex })}>Select questions</PrimaryButton></div>
+                </div>
+              ))}
+            </GlassCard>
+          ))}
+          {modalRoundTarget && <QuestionBankSelectorModal isOpen onClose={() => setModalRoundTarget(null)} selectedQuestionIds={rounds[modalRoundTarget.roundIndex]?.sections[modalRoundTarget.sectionIndex]?.questions || []} onSelectQuestions={(selectedIds) => updateRoundSection(modalRoundTarget.roundIndex, modalRoundTarget.sectionIndex, 'questions', selectedIds)} sectionName={rounds[modalRoundTarget.roundIndex]?.sections[modalRoundTarget.sectionIndex]?.name || 'Round section'} />}
         </div>
       )}
 

@@ -1,5 +1,5 @@
 import mongoose, { Schema, Model } from 'mongoose';
-import baseSchema, { BaseDocument } from './Base';
+import { BaseDocument } from './Base';
 
 export interface ITopic extends BaseDocument {
   subject: mongoose.Types.ObjectId;
@@ -75,7 +75,7 @@ TopicSchema.index({ subject: 1, grade: 1, chapter: 1, code: 1 });
 TopicSchema.index({ order: 1 });
 TopicSchema.index({ isActive: 1 });
 
-if (mongoose.models.Topic) {
+if (process.env.NODE_ENV !== 'production' && mongoose.models.Topic) {
   delete mongoose.models.Topic;
 }
 

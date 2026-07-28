@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
-import { auth } from '@/lib/auth/auth';
+import { auth, isSuperAdmin } from '@/lib/auth/auth';
 import connectDB from '@/lib/db/mongodb';
 import PracticeSetModel, { PracticeSetType } from '@/models/PracticeSet';
 import QuestionModel from '@/models/Question';
 
-const isAdmin = async () => {
+const requireSuperAdmin = async () => {
   const session = await auth();
-  return session && ['admin', 'super_admin'].includes(session.user.role) ? session : null;
+  return session && isSuperAdmin(session.user.role) ? session : null;
 };
 
 type SectionInput = { name?: string; instructions?: string; questions?: string[] };
@@ -66,7 +66,7 @@ const normalize = async (body: Record<string, unknown>) => {
 };
 
 export async function GET() {
-  const session = await isAdmin();
+  const session = await requireSuperAdmin();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   await connectDB();
   const data = await PracticeSetModel.find().sort({ updatedAt: -1 }).lean();
@@ -74,7 +74,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await isAdmin();
+  const session = await requireSuperAdmin();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
     await connectDB();

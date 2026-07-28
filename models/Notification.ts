@@ -1,5 +1,5 @@
 import mongoose, { Schema, Model } from 'mongoose';
-import baseSchema, { BaseDocument } from './Base';
+import { BaseDocument } from './Base';
 
 export enum NotificationType {
   ANNOUNCEMENT = 'announcement',
@@ -18,7 +18,7 @@ export interface INotification extends BaseDocument {
   message: string;
   isRead: boolean;
   link?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   sentAt: Date;
 }
 

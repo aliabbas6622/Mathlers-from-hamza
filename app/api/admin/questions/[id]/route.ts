@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
-import { auth } from '@/lib/auth/auth';
+import { auth, isSuperAdmin } from '@/lib/auth/auth';
 import connectDB from '@/lib/db/mongodb';
 import QuestionModel, { Difficulty } from '@/models/Question';
 import {
@@ -12,7 +12,6 @@ import {
 } from '@/lib/questions/payload';
 import { validateQuestionLinks } from '@/lib/questions/validateLinks';
 
-const canManageQuestions = (role?: string) => role === 'admin' || role === 'super_admin';
 const validId = (id: string) => mongoose.Types.ObjectId.isValid(id);
 const toObjectId = (id: string) => new mongoose.Types.ObjectId(id);
 
@@ -22,7 +21,7 @@ export async function GET(
 ) {
   try {
     const session = await auth();
-    if (!session || !canManageQuestions(session.user.role)) {
+    if (!session || !isSuperAdmin(session.user.role)) {
       return NextResponse.json(questionError('Unauthorized', 'UNAUTHORIZED'), { status: 401 });
     }
 
@@ -51,7 +50,7 @@ export async function PUT(
 ) {
   try {
     const session = await auth();
-    if (!session || !canManageQuestions(session.user.role)) {
+    if (!session || !isSuperAdmin(session.user.role)) {
       return NextResponse.json(questionError('Unauthorized', 'UNAUTHORIZED'), { status: 401 });
     }
 
@@ -117,7 +116,7 @@ export async function DELETE(
 ) {
   try {
     const session = await auth();
-    if (!session || !canManageQuestions(session.user.role)) {
+    if (!session || !isSuperAdmin(session.user.role)) {
       return NextResponse.json(questionError('Unauthorized', 'UNAUTHORIZED'), { status: 401 });
     }
 

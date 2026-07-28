@@ -41,7 +41,7 @@ export async function PUT(
       data: updated,
       message: 'Grade updated successfully',
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error updating grade:', error);
     return NextResponse.json({ success: false, error: 'Failed to update grade' }, { status: 500 });
   }
@@ -69,7 +69,7 @@ export async function DELETE(
       success: true,
       message: 'Grade deleted successfully',
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error deleting grade:', error);
     return NextResponse.json({ success: false, error: 'Failed to delete grade' }, { status: 500 });
   }

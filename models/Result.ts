@@ -1,5 +1,5 @@
 import mongoose, { Schema, Model } from 'mongoose';
-import baseSchema, { BaseDocument } from './Base';
+import { BaseDocument } from './Base';
 
 export enum ResultType {
   PRACTICE = 'practice',
@@ -129,6 +129,7 @@ const ResultSchema = new Schema<IResult>(
 
 ResultSchema.index({ student: 1, type: 1 });
 ResultSchema.index({ competition: 1, round: 1 });
+ResultSchema.index({ competition: 1, student: 1, type: 1 }, { unique: true, sparse: true });
 ResultSchema.index({ practiceSet: 1 });
 ResultSchema.index({ test: 1 });
 ResultSchema.index({ score: -1 });

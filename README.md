@@ -1,12 +1,12 @@
 # Mathlers
 
-Mathlers is a Next.js mathematics learning platform for students and admins. It includes student practice flows, competition enrollment, results tracking, an admin question bank, curriculum management, practice-book creation, analytics pages, and role-protected dashboards.
+Mathlers is a national mathematics competition platform with provisioned student accounts, school operations, championship rounds, and a developer-controlled administration portal.
 
 ## Tech Stack
 
 - Next.js 16 App Router
 - React 19
-- NextAuth credentials auth
+- Clerk authentication
 - MongoDB with Mongoose
 - Tailwind CSS
 - Zod validation
@@ -15,7 +15,9 @@ Mathlers is a Next.js mathematics learning platform for students and admins. It 
 ## Current Features
 
 - Student dashboard, profile, practice, competitions, progress, certificates, notifications, and results pages.
-- Admin dashboard, student management, schools, learning overview, question bank, subjects and topics, practice sets, competitions, analytics, notifications, results, and settings pages.
+- Separate developer, school-admin, and teacher workspaces.
+- Developer-controlled schools and batch account provisioning, with immediate Excel-compatible credential exports. Student credentials are never stored in Mathlers after export.
+- Competition enrollment, access codes, rulebook acceptance, manual review, capacity controls, and multi-round championship qualification.
 - Question bank with solo question creation, bulk CSV/JSON/XLSX import, math notation support, subtopics, grade filtering, and validation against subject/grade/chapter/topic links.
 - Curriculum management for subjects, grade availability, topics, chapters, and subtopics.
 - Practice books built from selected question-bank questions across multiple subject and grade sections.
@@ -39,17 +41,21 @@ Required values:
 
 ```env
 MONGODB_URI=
-NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+CLERK_SECRET_KEY=
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_APP_NAME=Mathlers
 ```
 
-Generate a strong auth secret when preparing a real environment:
+For the first developer, create a user in Clerk with a verified email, then run the one-time local bootstrap command using that same email:
 
-```bash
-openssl rand -base64 32
+```powershell
+$env:SUPER_ADMIN_EMAIL='developer@example.com'
+$env:SUPER_ADMIN_NAME='Platform Developer'
+node scripts/bootstrap-super-admin.js
 ```
+
+The developer can then sign in and use `/admin/developer` to create schools and provision school admins, teachers, and students. Public registration intentionally redirects to `/request-access`.
 
 ## Development
 
@@ -65,7 +71,7 @@ Open:
 http://localhost:3000
 ```
 
-Development bypass login is available outside production through the login screen for admin/student testing.
+Use Clerk's development instance for local testing. There is no credentials-login bypass.
 
 ## Verification
 
@@ -87,7 +93,11 @@ Run lint:
 npm run lint
 ```
 
-Note: lint may still surface older codebase cleanup items. TypeScript and production build are the primary checks currently used for release confidence.
+Prepare the competition indexes after taking a verified MongoDB backup:
+
+```bash
+npm run db:prepare-competition-indexes
+```
 
 ## Project Structure
 
@@ -130,15 +140,13 @@ Admins manage practice books from `/admin/practice`:
 The active roles are:
 
 - `student`
+- `teacher`
 - `admin`
 - `super_admin`
-- `coordinator`
 
-Admin pages accept `admin` and `super_admin`. Student pages require `student`. Route-level checks live in `proxy.ts`, and API routes still perform their own role checks.
+`super_admin` is the developer role and operates the platform-wide `/admin` portal. `admin` is scoped to one school and manages only that school’s teachers and students. `teacher` belongs to a school and has a read-only teaching workspace. `student` has no public sign-up path and can sign in only after a developer or school admin provisions an account. Route-level checks live in `proxy.ts`, while APIs enforce authorization independently.
 
 ## Known Gaps
 
-- Automated tests are not configured yet.
-- Some documentation files outside this README are still placeholders.
-- The coordinator role exists in the user model but does not yet have a dedicated portal.
-- Some older admin pages still use stricter `admin` checks and can be widened to `super_admin` for consistency.
+- Automated end-to-end tests are not configured yet.
+- Before launch, configure Clerk’s production instance, use production MongoDB credentials, run the index preparation command after a backup, configure shared CDN/WAF rate limits, and resolve the current dependency audit advisories before deploying.

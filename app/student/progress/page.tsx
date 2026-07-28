@@ -1,29 +1,31 @@
 import { auth } from '@/lib/auth/auth';
 import { redirect } from 'next/navigation';
 import connectDB from '@/lib/db/mongodb';
-import ResultModel from '@/models/Result';
+import ResultModel, { IResult } from '@/models/Result';
 import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
+import Link from 'next/link';
+
+type ProgressResult = Pick<IResult, 'score' | 'accuracy' | 'completedAt'>;
 
 export default async function ProgressPage() {
   const session = await auth();
   
   if (!session) {
-    redirect('/login');
+    redirect('/sign-in');
   }
 
   await connectDB();
 
-  const results = await ResultModel.find({ student: session.user.id })
+  const results = (await ResultModel.find({ student: session.user.id })
     .sort({ completedAt: -1 })
-    .limit(50);
+    .limit(50)) as unknown as ProgressResult[];
 
   const totalTests = results.length;
-  const passedTests = results.filter((r: any) => r.accuracy >= 70).length;
+  const passedTests = results.filter((result) => result.accuracy >= 70).length;
   const passRate = totalTests > 0 ? Math.round((passedTests / totalTests) * 100) : 0;
 
-  const weeklyProgress: any = {};
-  results.forEach((result: any) => {
+  const weeklyProgress: Record<string, { count: number; score: number }> = {};
+  results.forEach((result) => {
     const date = new Date(result.completedAt);
     const weekKey = `${date.getFullYear()}-W${Math.ceil(date.getDate() / 7)}`;
     if (!weeklyProgress[weekKey]) {
@@ -34,17 +36,17 @@ export default async function ProgressPage() {
   });
 
   const weeklyData = Object.entries(weeklyProgress)
-    .map(([week, data]: [string, any]) => ({
+    .map(([week, data]) => ({
       week,
       tests: data.count,
       avgScore: Math.round(data.score / data.count),
     }))
     .slice(-8);
 
-  const strengths: any = {};
-  const weaknesses: any = {};
-  results.forEach((result: any) => {
-    const subject = result.subject || 'General';
+  const strengths: Record<string, number[]> = {};
+  const weaknesses: Record<string, number[]> = {};
+  results.forEach((result) => {
+    const subject = 'General';
     const avg = result.accuracy;
     if (!strengths[subject]) strengths[subject] = [];
     if (!weaknesses[subject]) weaknesses[subject] = [];
@@ -96,7 +98,7 @@ export default async function ProgressPage() {
               <h3 className="font-semibold text-green-700 mb-2">Strengths</h3>
               {Object.keys(strengths).length > 0 ? (
                 <div className="space-y-2">
-                  {Object.entries(strengths).map(([subject, scores]: [string, any]) => (
+                  {Object.entries(strengths).map(([subject, scores]) => (
                     <div key={subject} className="flex justify-between text-sm">
                       <span>{subject}</span>
                       <span className="text-green-600">{scores.length} high scores</span>
@@ -111,7 +113,7 @@ export default async function ProgressPage() {
               <h3 className="font-semibold text-red-700 mb-2">Areas to Improve</h3>
               {Object.keys(weaknesses).length > 0 ? (
                 <div className="space-y-2">
-                  {Object.entries(weaknesses).map(([subject, scores]: [string, any]) => (
+                  {Object.entries(weaknesses).map(([subject, scores]) => (
                     <div key={subject} className="flex justify-between text-sm">
                       <span>{subject}</span>
                       <span className="text-red-600">{scores.length} low scores</span>
@@ -144,7 +146,7 @@ export default async function ProgressPage() {
               <p className="text-green-800">Great progress! Consider joining competitions</p>
             </div>
           )}
-          <Button className="w-full">View Practice Sets</Button>
+          <Link href="/student/practice" className="inline-flex w-full justify-center rounded-xl border border-transparent bg-brand-primary px-6 py-3 font-semibold text-white transition-colors hover:border-brand-dark hover:bg-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2">View Practice Sets</Link>
         </div>
       </Card>
     </div>

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
-import { auth } from '@/lib/auth/auth';
+import { auth, isSuperAdmin } from '@/lib/auth/auth';
 import connectDB from '@/lib/db/mongodb';
 import PracticeSetModel from '@/models/PracticeSet';
 
 const authorized = async () => {
   const session = await auth();
-  return session && ['admin', 'super_admin'].includes(session.user.role);
+  return session && isSuperAdmin(session.user.role);
 };
 
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

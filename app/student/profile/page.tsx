@@ -2,22 +2,26 @@ import { auth } from '@/lib/auth/auth';
 import { redirect } from 'next/navigation';
 import connectDB from '@/lib/db/mongodb';
 import UserModel from '@/models/User';
-import ResultModel from '@/models/Result';
+import ResultModel, { IResult } from '@/models/Result';
 import GlassCard from '@/components/ui/GlassCard';
 import PrimaryButton from '@/components/ui/PrimaryButton';
 import { User, Mail, Edit, Award, TrendingUp, Target } from 'lucide-react';
+
+type ProfileResult = Pick<IResult, 'score' | 'accuracy' | 'type' | 'completedAt'> & {
+  _id: { toString(): string };
+};
 
 export default async function StudentProfilePage() {
   const session = await auth();
   
   if (!session) {
-    redirect('/login');
+    redirect('/sign-in');
   }
 
   await connectDB();
 
   const user = await UserModel.findById(session.user.id);
-  const results = await ResultModel.find({ student: session.user.id });
+  const results = (await ResultModel.find({ student: session.user.id })) as unknown as ProfileResult[];
 
   const totalPoints = results.reduce((sum, r) => sum + (r.score || 0), 0);
   const accuracy = results.length > 0 
@@ -108,7 +112,7 @@ export default async function StudentProfilePage() {
           <GlassCard className="p-6">
             <h3 className="text-xl font-bold text-gray-900 mb-4">Recent Activity</h3>
             <div className="space-y-3">
-              {results.slice(0, 5).map((result: any) => (
+              {results.slice(0, 5).map((result) => (
                 <div key={result._id.toString()} className="flex items-center gap-4 p-3 bg-white/50 rounded-xl">
                   <div className="w-10 h-10 bg-brand-lighter rounded-lg flex items-center justify-center">
                     <Award className="w-5 h-5 text-brand-primary" />

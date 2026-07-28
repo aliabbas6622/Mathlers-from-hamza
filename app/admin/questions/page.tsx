@@ -208,7 +208,7 @@ export default function QuestionsPage() {
   const [selectedTopic, setSelectedTopic] = useState('');
   const [selectedSubtopic, setSelectedSubtopic] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState('');
-  const [topics, setTopics] = useState<any[]>([]);
+  const [topics, setTopics] = useState<Array<{ _id: string; name: string; subtopics?: Array<{ _id: string; name: string }> }>>([]);
   const [bulkUploading, setBulkUploading] = useState(false);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [uploadPreview, setUploadPreview] = useState<UploadPreview | null>(null);
@@ -237,7 +237,9 @@ export default function QuestionsPage() {
 
   useEffect(() => {
     if (selectedSubject) {
+      const controller = new AbortController();
       void fetchTopics(selectedSubject, selectedGrade);
+      return () => controller.abort();
     } else {
       setTopics([]);
       setSelectedTopic('');
@@ -417,14 +419,8 @@ export default function QuestionsPage() {
       rawItems = JSON.parse(await file.text());
     } else if (extension === 'csv') {
       rawItems = parseCsv(await file.text());
-    } else if (extension === 'xlsx' || extension === 'xls') {
-      const XLSX = await import('xlsx');
-      const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      if (!sheet) throw new Error('The spreadsheet does not contain a worksheet.');
-      rawItems = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
     } else {
-      throw new Error('Use a CSV, JSON, XLSX, or XLS file.');
+      throw new Error('Use a CSV or JSON file.');
     }
 
     const items = Array.isArray(rawItems) ? rawItems : isRecord(rawItems) ? rawItems.questions : undefined;
@@ -490,7 +486,7 @@ export default function QuestionsPage() {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".csv,.json,.xlsx,.xls,application/json,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+            accept=".csv,.json,application/json,text/csv"
             className="hidden"
             onChange={handleBulkFileSelect}
           />
@@ -510,7 +506,7 @@ export default function QuestionsPage() {
 
       <div className="grid gap-4 border-y border-gray-200 bg-white py-5 md:grid-cols-[auto_1fr] md:items-center">
         <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-brand-lighter text-brand-primary"><FileSpreadsheet className="h-5 w-5" /></div>
-        <div><p className="font-semibold text-gray-950">Bulk question upload</p><p className="mt-1 text-sm text-gray-600">Import CSV, JSON, XLSX, or XLS using curriculum IDs. LaTeX is accepted in question, option, and explanation fields. Every row is validated before it reaches the question bank.</p></div>
+        <div><p className="font-semibold text-gray-950">Bulk question upload</p><p className="mt-1 text-sm text-gray-600">Import CSV or JSON using curriculum IDs. LaTeX is accepted in question, option, and explanation fields. Every row is validated before it reaches the question bank.</p></div>
       </div>
 
       {/* Search and Filters */}
@@ -584,7 +580,7 @@ export default function QuestionsPage() {
               className="px-4 py-3 rounded-xl border border-gray-200 focus:border-brand-primary outline-none"
             >
               <option value="">All Subtopics</option>
-              {topics.find((t) => t._id === selectedTopic)?.subtopics.map((sub: any) => (
+              {topics.find((t) => t._id === selectedTopic)?.subtopics?.map((sub: { _id: string; name: string }) => (
                 <option key={sub._id} value={sub._id}>
                   {sub.name}
                 </option>

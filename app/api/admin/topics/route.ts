@@ -1,17 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth/auth';
+import { auth, isSuperAdmin } from '@/lib/auth/auth';
 import connectDB from '@/lib/db/mongodb';
 import TopicModel from '@/models/Topic';
 import SubjectModel from '@/models/Subject';
 import GradeModel from '@/models/Grade';
 import ChapterModel from '@/models/Chapter';
+import mongoose from 'mongoose';
 
-const isAdmin = async () => {
+const requireSuperAdmin = async () => {
   const session = await auth();
-  return session && ['admin', 'super_admin'].includes(session.user.role);
+  return session && isSuperAdmin(session.user.role);
 };
 
+const validIds = (value: unknown): value is string[] => Array.isArray(value)
+  && value.every((id) => typeof id === 'string' && mongoose.isValidObjectId(id));
+
 export async function GET(request: NextRequest) {
+  if (!await requireSuperAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   try {
     await connectDB();
 
@@ -20,6 +26,9 @@ export async function GET(request: NextRequest) {
     const subject = searchParams.get('subject');
 
     const query: Record<string, unknown> = {};
+    if ((chapter && !mongoose.isValidObjectId(chapter)) || (subject && !mongoose.isValidObjectId(subject))) {
+      return NextResponse.json({ error: 'Invalid curriculum filter' }, { status: 400 });
+    }
     if (chapter) query.chapter = chapter;
     if (subject) query.$or = [{ subject }, { subjects: subject }];
 
@@ -44,21 +53,36 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!await isAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!await requireSuperAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
     await connectDB();
     const body = await request.json() as {
-      name?: string; code?: string; description?: string; grade?: string; chapter?: string;
-      subjects?: string[]; subtopics?: Array<{ name?: string; code?: string }>; order?: number; isActive?: boolean;
+      name?: string; code?: string; description?: string; grade?: unknown; chapter?: unknown;
+      subjects?: unknown; subtopics?: Array<{ name?: string; code?: string }>; order?: number; isActive?: boolean;
     };
-    const subjects = [...new Set((body.subjects || []).filter(Boolean))];
+    if (!validIds(body.subjects) || typeof body.grade !== 'string' || !mongoose.isValidObjectId(body.grade) || typeof body.chapter !== 'string' || !mongoose.isValidObjectId(body.chapter)) {
+      return NextResponse.json({ error: 'Grade, chapter, and subjects must be valid identifiers' }, { status: 400 });
+    }
+    const subjects = [...new Set(body.subjects)];
     const subtopics = (body.subtopics || []).filter((item) => item.name?.trim()).map((item) => ({
       name: item.name!.trim(), code: item.code?.trim(),
     }));
 
     if (!body.name?.trim() || !body.code?.trim() || !subjects.length) {
-      return NextResponse.json({ error: 'Name, code, and at least one subject are required' }, { status: 400 });
+      return NextResponse.json({ error: 'Name, code, grade, chapter, and at least one subject are required' }, { status: 400 });
+    }
+
+    const [grade, chapter, subjectDocs] = await Promise.all([
+      GradeModel.exists({ _id: body.grade }),
+      ChapterModel.exists({ _id: body.chapter }),
+      SubjectModel.find({ _id: { $in: subjects } }).select('grades'),
+    ]);
+    if (!grade || !chapter || subjectDocs.length !== subjects.length) {
+      return NextResponse.json({ error: 'One or more curriculum links are invalid' }, { status: 400 });
+    }
+    if (subjectDocs.some((subject) => subject.grades?.length && !subject.grades.some((item) => item.toString() === body.grade))) {
+      return NextResponse.json({ error: 'One or more subjects are not available for this grade' }, { status: 400 });
     }
 
     const topic = await TopicModel.create({

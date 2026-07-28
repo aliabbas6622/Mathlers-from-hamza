@@ -4,17 +4,51 @@ import React, { useState } from 'react';
 import GlassCard from '@/components/ui/GlassCard';
 import PrimaryButton from '@/components/ui/PrimaryButton';
 import Input from '@/components/ui/Input';
-import { Tag, Check, AlertCircle, Trophy, Calendar, Users, Layers, Clock, ShieldCheck, Download, X, QrCode, ArrowRight } from 'lucide-react';
+import { Tag, Check, AlertCircle, Trophy, Layers, Clock, ShieldCheck, Download, X, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+
+interface CompetitionPreview {
+  _id: string;
+  category: string;
+  name: string;
+  organizer: string;
+  description: string;
+  sectionsCount: number;
+  totalDuration: number;
+  registration?: { type?: string };
+  eligibility?: { grades?: string[]; maxParticipants?: number };
+  rulebook?: string | { content?: string };
+}
+
+interface EligibilityCheck {
+  isEnrolled?: boolean;
+  existingParticipantId?: string;
+  isGradeEligible?: boolean;
+  isFull?: boolean;
+  isSchoolEligible?: boolean;
+}
+
+interface JoinCodeResponse {
+  competition: CompetitionPreview;
+  eligibilityCheck: EligibilityCheck;
+  error?: string;
+}
+
+interface EnrollmentResult {
+  participantId: string;
+  competitionName: string;
+  competitionId: string;
+  status?: string;
+}
 
 export default function JoinWithCodeSection({ studentName = 'Student' }: { studentName?: string }) {
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [competitionData, setCompetitionData] = useState<any>(null);
+  const [competitionData, setCompetitionData] = useState<JoinCodeResponse | null>(null);
   const [rulebookAccepted, setRulebookAccepted] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
-  const [enrollmentResult, setEnrollmentResult] = useState<any>(null);
+  const [enrollmentResult, setEnrollmentResult] = useState<EnrollmentResult | null>(null);
   const [showPassModal, setShowPassModal] = useState(false);
 
   const handleValidateCode = async (e: React.FormEvent) => {
@@ -33,15 +67,15 @@ export default function JoinWithCodeSection({ studentName = 'Student' }: { stude
         body: JSON.stringify({ code }),
       });
 
-      const data = await res.json();
+      const data = await res.json() as JoinCodeResponse;
 
       if (!res.ok) {
         throw new Error(data.error || 'Failed to find competition');
       }
 
       setCompetitionData(data);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to find competition');
     } finally {
       setLoading(false);
     }
@@ -65,22 +99,23 @@ export default function JoinWithCodeSection({ studentName = 'Student' }: { stude
       const res = await fetch(`/api/competitions/${competitionData.competition._id}/enroll`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rulebookAccepted, accessCode: code }),
       });
 
-      const data = await res.json();
+      const data = await res.json() as { participantId?: string; status?: string; error?: string };
 
       if (!res.ok) {
         throw new Error(data.error || 'Failed to enroll');
       }
 
       setEnrollmentResult({
-        participantId: data.participantId,
+        participantId: data.participantId ?? '',
         competitionName: competitionData.competition.name,
-        accessCode: competitionData.competition.registration?.accessCode || code,
         competitionId: competitionData.competition._id,
+        status: data.status,
       });
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to enroll');
     } finally {
       setEnrolling(false);
     }
@@ -146,8 +181,8 @@ export default function JoinWithCodeSection({ studentName = 'Student' }: { stude
               <h3 className="text-2xl font-bold text-gray-900 mt-2">{comp.name}</h3>
               <p className="text-gray-600 text-sm mt-1">Organized by {comp.organizer}</p>
             </div>
-            <span className="text-sm font-mono font-bold text-gray-700 bg-gray-100 px-3 py-1 rounded-lg">
-              {comp.registration?.accessCode}
+            <span className="text-xs font-medium text-gray-600 bg-gray-100 px-3 py-1 rounded-lg">
+              Invitation verified
             </span>
           </div>
 
@@ -200,6 +235,10 @@ export default function JoinWithCodeSection({ studentName = 'Student' }: { stude
                 <div className="p-4 bg-amber-50 text-amber-700 rounded-xl border border-amber-200 text-sm">
                   ⚠️ Your grade is not eligible for this competition. Allowed: {comp.eligibility?.grades?.join(', ')}
                 </div>
+              ) : !elig.isSchoolEligible ? (
+                <div className="p-4 bg-amber-50 text-amber-700 rounded-xl border border-amber-200 text-sm">
+                  ⚠️ Your school is not eligible for this competition.
+                </div>
               ) : elig.isFull ? (
                 <div className="p-4 bg-red-50 text-red-600 rounded-xl border border-red-200 text-sm">
                   🛑 This competition has reached its maximum participant limit.
@@ -241,8 +280,8 @@ export default function JoinWithCodeSection({ studentName = 'Student' }: { stude
           </div>
 
           <div>
-            <h3 className="text-3xl font-bold text-gray-900">🎉 Successfully Enrolled!</h3>
-            <p className="text-gray-600 mt-1">You are now registered for <strong>{enrollmentResult.competitionName}</strong></p>
+            <h3 className="text-3xl font-bold text-gray-900">{enrollmentResult.status === 'pending' ? 'Enrollment received' : 'Successfully enrolled!'}</h3>
+            <p className="text-gray-600 mt-1">{enrollmentResult.status === 'pending' ? <>Your registration for <strong>{enrollmentResult.competitionName}</strong> is awaiting approval.</> : <>You are now registered for <strong>{enrollmentResult.competitionName}</strong>.</>}</p>
           </div>
 
           <div className="max-w-md mx-auto p-4 bg-white rounded-2xl shadow-sm border border-green-200 text-left space-y-2">
@@ -250,16 +289,12 @@ export default function JoinWithCodeSection({ studentName = 'Student' }: { stude
               <span className="text-gray-500">Participant ID</span>
               <span className="font-mono font-bold text-brand-primary">{enrollmentResult.participantId}</span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Access Code</span>
-              <span className="font-mono font-semibold text-gray-700">{enrollmentResult.accessCode}</span>
-            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
-            <PrimaryButton onClick={() => setShowPassModal(true)}>
-              <QrCode className="w-4 h-4 mr-2" /> Download Competition Pass
-            </PrimaryButton>
+            {enrollmentResult.status !== 'pending' && <PrimaryButton onClick={() => setShowPassModal(true)}>
+              <Download className="w-4 h-4 mr-2" /> View Printable Pass
+            </PrimaryButton>}
             <Link href={`/student/competitions/${enrollmentResult.competitionId}`}>
               <PrimaryButton variant="secondary">
                 View Competition <ArrowRight className="w-4 h-4 ml-2" />
@@ -270,7 +305,7 @@ export default function JoinWithCodeSection({ studentName = 'Student' }: { stude
       )}
 
       {/* Digital Competition Pass Modal */}
-      {showPassModal && enrollmentResult && (
+      {showPassModal && enrollmentResult && enrollmentResult.status !== 'pending' && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl p-8 max-w-md w-full relative shadow-2xl space-y-6">
             <button
@@ -309,15 +344,12 @@ export default function JoinWithCodeSection({ studentName = 'Student' }: { stude
                 </div>
               </div>
 
-              {/* QR Code Placeholder */}
               <div className="bg-white p-3 rounded-xl flex items-center justify-between text-gray-900">
                 <div>
-                  <p className="text-xs text-gray-500">Scan for Verification</p>
-                  <p className="font-mono text-xs font-bold">{enrollmentResult.participantId}</p>
+                  <p className="text-xs text-gray-500">Participant ID</p>
+                  <p className="font-mono text-sm font-bold">{enrollmentResult.participantId}</p>
                 </div>
-                <div className="w-12 h-12 bg-gray-900 rounded-lg flex items-center justify-center text-white">
-                  <QrCode className="w-8 h-8" />
-                </div>
+                <p className="max-w-36 text-right text-xs text-gray-500">Keep this ID available for event check-in.</p>
               </div>
             </div>
 

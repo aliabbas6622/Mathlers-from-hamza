@@ -1,5 +1,4 @@
 import { api } from './api';
-import { Session } from 'next-auth';
 
 export interface LoginRequest {
   email: string;
@@ -14,26 +13,27 @@ export interface RegisterRequest {
 }
 
 export interface AuthResponse {
-  user: Session['user'];
+  user: { id: string; email?: string; name?: string; role?: string };
 }
 
 export const authService = {
   login: async (credentials: LoginRequest) => {
-    return api.post<AuthResponse>('/auth/login', credentials);
+    void credentials;
+    throw new Error('Use Clerk sign-in for authentication.');
   },
 
   register: async (data: RegisterRequest) => {
-    return api.post<AuthResponse>('/auth/register', data);
+    void data;
+    throw new Error('Use Clerk sign-up for registration.');
   },
 
   logout: async () => {
-    // Client-side logout is handled by next-auth signOut
+    // Clerk's UserButton handles sign-out in the interface.
     return { data: { success: true }, status: 200 };
   },
 
   getSession: async () => {
-    // Session is managed by next-auth client
-    return { data: null as Session | null, status: 200 };
+    return { data: null, status: 200 };
   },
 
   getProfile: async () => {

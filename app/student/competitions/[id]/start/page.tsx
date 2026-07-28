@@ -9,6 +9,7 @@ import { MathRenderer } from '@/components/math/MathRenderer';
 import { Clock, ChevronLeft, ChevronRight, Send, AlertTriangle, ShieldCheck } from 'lucide-react';
 
 type ExamOption = {
+  key: string;
   optionText: string;
 };
 
@@ -39,6 +40,8 @@ type StartCompetitionResponse = {
   error?: string;
 };
 
+type SubmitCompetitionResponse = { completed?: boolean; error?: string };
+
 export default function CompetitionExamPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const competitionId = resolvedParams.id;
@@ -50,7 +53,7 @@ export default function CompetitionExamPage({ params }: { params: Promise<{ id: 
 
   const [activeSectionIdx, setActiveSectionIdx] = useState(0);
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, number>>({});
+  const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
@@ -102,9 +105,9 @@ export default function CompetitionExamPage({ params }: { params: Promise<{ id: 
   const questions = currentSection.questions || [];
   const currentQuestion = questions[currentQuestionIdx];
 
-  const handleOptionSelect = (optionIdx: number) => {
+  const handleOptionSelect = (optionKey: string) => {
     if (!currentQuestion?._id) return;
-    setAnswers(prev => ({ ...prev, [currentQuestion._id]: optionIdx }));
+    setAnswers(prev => ({ ...prev, [currentQuestion._id]: optionKey }));
   };
 
   const handleSubmitExam = async () => {
@@ -116,12 +119,12 @@ export default function CompetitionExamPage({ params }: { params: Promise<{ id: 
         body: JSON.stringify({ answers }),
       });
 
+      const data = await res.json() as SubmitCompetitionResponse;
       if (!res.ok) {
-        const d = await res.json();
+        const d = data;
         throw new Error(d.error || 'Failed to submit exam');
       }
-
-      router.push(`/student/competitions/${competitionId}/results`);
+      router.push(data.completed ? `/student/competitions/${competitionId}/results` : `/student/competitions/${competitionId}`);
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : 'Failed to submit exam');
       setSubmitting(false);
@@ -194,11 +197,11 @@ export default function CompetitionExamPage({ params }: { params: Promise<{ id: 
               {/* Options */}
               <div className="space-y-3 pt-4">
                 {currentQuestion.options?.map((opt, oIdx) => {
-                  const isSelected = answers[currentQuestion._id] === oIdx;
+                  const isSelected = answers[currentQuestion._id] === opt.key;
                   return (
                     <div
                       key={oIdx}
-                      onClick={() => handleOptionSelect(oIdx)}
+                      onClick={() => handleOptionSelect(opt.key)}
                       className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center gap-4 ${
                         isSelected
                           ? 'bg-brand-lighter/50 border-brand-primary shadow-sm font-semibold'
@@ -208,7 +211,7 @@ export default function CompetitionExamPage({ params }: { params: Promise<{ id: 
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shrink-0 ${
                         isSelected ? 'bg-brand-primary text-white' : 'bg-gray-100 text-gray-600'
                       }`}>
-                        {String.fromCharCode(65 + oIdx)}
+                        {opt.key}
                       </div>
                       <div className="text-gray-900 text-base">
                         <MathRenderer>{opt.optionText}</MathRenderer>

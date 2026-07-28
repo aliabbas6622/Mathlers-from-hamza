@@ -3,14 +3,37 @@
 import React, { useState } from 'react';
 import GlassCard from '@/components/ui/GlassCard';
 import PrimaryButton from '@/components/ui/PrimaryButton';
-import { Trophy, Calendar, Users, Layers, Tag, Check, Play, CheckCircle2, Search, QrCode, Download, X } from 'lucide-react';
+import { Trophy, Calendar, Users, Layers, Tag, CheckCircle2, Search, Download, X } from 'lucide-react';
 import Link from 'next/link';
 import JoinWithCodeSection from './JoinWithCodeSection';
 
+type CompetitionTab = 'upcoming' | 'my' | 'code' | 'live' | 'completed';
+
+export interface CompetitionCard {
+  _id: string;
+  name: string;
+  description?: string;
+  category?: string;
+  status: string;
+  schedule?: { competitionStartDate?: string };
+  analytics?: { totalRegistrations?: number };
+  sections?: unknown[];
+}
+
+export interface EnrollmentSummary {
+  participantId?: string;
+  status?: string;
+}
+
+interface CompetitionPass {
+  competition: CompetitionCard;
+  enrollment: EnrollmentSummary;
+}
+
 interface Props {
-  competitions: any[];
-  enrolledCompetitions: any[];
-  enrollmentMap: Record<string, any>;
+  competitions: CompetitionCard[];
+  enrolledCompetitions: CompetitionCard[];
+  enrollmentMap: Record<string, EnrollmentSummary>;
   studentName: string;
 }
 
@@ -20,9 +43,9 @@ export default function StudentCompetitionCenter({
   enrollmentMap,
   studentName,
 }: Props) {
-  const [activeTab, setActiveTab] = useState<'upcoming' | 'my' | 'code' | 'live' | 'completed'>('upcoming');
+  const [activeTab, setActiveTab] = useState<CompetitionTab>('upcoming');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedPass, setSelectedPass] = useState<any>(null);
+  const [selectedPass, setSelectedPass] = useState<CompetitionPass | null>(null);
 
   const liveCompetitions = competitions.filter(c => c.status === 'in_progress');
   const completedCompetitions = competitions.filter(c => c.status === 'completed');
@@ -37,6 +60,13 @@ export default function StudentCompetitionCenter({
   ).filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.description?.toLowerCase().includes(searchQuery.toLowerCase()));
 
   const categoryIcon: Record<string, string> = { public: '🌍', grade: '🏫', championship: '🥊' };
+  const tabs: { id: CompetitionTab; label: string; count?: number }[] = [
+    { id: 'upcoming', label: 'Upcoming Competitions', count: upcomingCompetitions.length },
+    { id: 'my', label: 'My Competitions', count: enrolledCompetitions.length },
+    { id: 'code', label: '🏷 Join with Code' },
+    { id: 'live', label: '🔴 Live Competitions', count: liveCompetitions.length },
+    { id: 'completed', label: 'Completed', count: completedCompetitions.length },
+  ];
 
   return (
     <div className="space-y-8">
@@ -56,16 +86,10 @@ export default function StudentCompetitionCenter({
 
       {/* Navigation Tabs */}
       <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-3">
-        {[
-          { id: 'upcoming', label: 'Upcoming Competitions', count: upcomingCompetitions.length },
-          { id: 'my', label: 'My Competitions', count: enrolledCompetitions.length },
-          { id: 'code', label: '🏷 Join with Code', special: true },
-          { id: 'live', label: '🔴 Live Competitions', count: liveCompetitions.length },
-          { id: 'completed', label: 'Completed', count: completedCompetitions.length },
-        ].map(tab => (
+        {tabs.map(tab => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
+            onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all ${
               activeTab === tab.id
                 ? 'bg-brand-primary text-white shadow-md'
@@ -106,9 +130,10 @@ export default function StudentCompetitionCenter({
       {/* Tab Content — Competition Grid */}
       {activeTab !== 'code' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredCompetitions.map((comp: any) => {
+          {filteredCompetitions.map((comp) => {
             const isEnrolled = !!enrollmentMap[comp._id.toString()];
             const enrollment = enrollmentMap[comp._id.toString()];
+            const isConfirmed = ['approved', 'in_progress', 'completed'].includes(enrollment?.status || '');
             const startDate = comp.schedule?.competitionStartDate
               ? new Date(comp.schedule.competitionStartDate).toLocaleDateString()
               : 'TBA';
@@ -152,9 +177,8 @@ export default function StudentCompetitionCenter({
                   </div>
                 </Link>
 
-                {isEnrolled ? (
+                {isEnrolled && isConfirmed ? (
                   <div className="space-y-3 pt-2 border-t border-gray-100 mt-auto">
-                    {/* Enrolled Badge with Participant ID & QR Preview */}
                     <div className="p-3 bg-green-50 rounded-xl border border-green-200 flex items-center justify-between">
                       <div>
                         <div className="flex items-center gap-1.5 text-green-700 font-semibold text-xs">
@@ -165,7 +189,6 @@ export default function StudentCompetitionCenter({
                         </p>
                       </div>
 
-                      {/* Mini Interactive QR Button */}
                       <button
                         type="button"
                         onClick={(e) => {
@@ -173,9 +196,9 @@ export default function StudentCompetitionCenter({
                           setSelectedPass({ competition: comp, enrollment });
                         }}
                         className="p-2 bg-gray-900 hover:bg-brand-primary text-white rounded-lg transition-colors flex items-center gap-1 shadow-sm text-xs font-medium"
-                        title="View Competition Pass & QR Code"
+                        title="View printable competition pass"
                       >
-                        <QrCode className="w-4 h-4" />
+                        <Download className="w-4 h-4" />
                         <span>Pass</span>
                       </button>
                     </div>
@@ -200,6 +223,8 @@ export default function StudentCompetitionCenter({
                       </Link>
                     )}
                   </div>
+                ) : isEnrolled ? (
+                  <div className="mt-auto space-y-3 border-t border-gray-100 pt-4"><div className={`rounded-xl border p-3 text-sm ${enrollment?.status === 'pending' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-red-200 bg-red-50 text-red-700'}`}>{enrollment?.status === 'pending' ? 'Enrollment is awaiting approval.' : 'This enrollment is not approved.'}</div><Link href={`/student/competitions/${comp._id.toString()}`} className="block"><div className="w-full rounded-lg bg-gray-100 py-2 text-center text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-200">View Competition →</div></Link></div>
                 ) : (
                   <Link href={`/student/competitions/${comp._id.toString()}`} className="block mt-auto">
                     <div className="w-full py-3 bg-brand-primary text-white rounded-xl text-center font-semibold text-sm group-hover:bg-brand-dark transition-colors">
@@ -213,7 +238,6 @@ export default function StudentCompetitionCenter({
         </div>
       )}
 
-      {/* QR Code Pass Modal */}
       {selectedPass && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl p-8 max-w-md w-full relative shadow-2xl space-y-6">
@@ -234,7 +258,7 @@ export default function StudentCompetitionCenter({
                 <span className="font-extrabold tracking-wider text-xs uppercase bg-white/20 px-3 py-1 rounded-full">
                   OFFICIAL COMPETITION PASS
                 </span>
-                <span className="text-xs text-green-300 font-semibold">✓ VERIFIED</span>
+                <span className="text-xs text-white/70 font-semibold">Participant pass</span>
               </div>
 
               <div>
@@ -253,17 +277,14 @@ export default function StudentCompetitionCenter({
                 </div>
               </div>
 
-              {/* QR Verification Box */}
               <div className="bg-white p-4 rounded-xl flex items-center justify-between text-gray-900 shadow-inner">
                 <div>
-                  <p className="text-xs text-gray-500">Scan for Verification</p>
-                  <p className="font-mono text-xs font-bold text-brand-primary mt-1">
+                  <p className="text-xs text-gray-500">Participant ID</p>
+                  <p className="font-mono text-sm font-bold text-brand-primary mt-1">
                     {selectedPass.enrollment?.participantId}
                   </p>
                 </div>
-                <div className="w-14 h-14 bg-gray-900 rounded-lg flex items-center justify-center text-white shadow-md">
-                  <QrCode className="w-10 h-10" />
-                </div>
+                <p className="max-w-36 text-right text-xs text-gray-500">Keep this ID available for event check-in.</p>
               </div>
             </div>
 

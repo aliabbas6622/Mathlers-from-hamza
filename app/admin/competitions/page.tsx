@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth/auth';
+import { auth, isAdmin } from '@/lib/auth/auth';
 import { redirect } from 'next/navigation';
 import connectDB from '@/lib/db/mongodb';
 import CompetitionModel from '@/models/Competition';
@@ -25,8 +25,8 @@ type CompetitionRow = {
 export default async function CompetitionsPage() {
   const session = await auth();
   
-  if (!session || session.user.role !== 'admin') {
-    redirect('/login');
+  if (!session || !isAdmin(session.user.role)) {
+    redirect('/sign-in');
   }
 
   await connectDB();

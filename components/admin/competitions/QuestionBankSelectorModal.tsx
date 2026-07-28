@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, X, Check, BookOpen, Layers, Filter } from 'lucide-react';
-import GlassCard from '@/components/ui/GlassCard';
+import { Search, X, Check } from 'lucide-react';
 import PrimaryButton from '@/components/ui/PrimaryButton';
 
 interface QuestionItem {
@@ -37,10 +36,6 @@ export default function QuestionBankSelectorModal({
   const [search, setSearch] = useState('');
   const [difficulty, setDifficulty] = useState('');
   const [localSelected, setLocalSelected] = useState<string[]>(selectedQuestionIds);
-
-  useEffect(() => {
-    setLocalSelected(selectedQuestionIds);
-  }, [selectedQuestionIds]);
 
   useEffect(() => {
     if (!isOpen) return;

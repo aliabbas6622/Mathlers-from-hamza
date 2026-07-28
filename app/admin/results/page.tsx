@@ -1,23 +1,22 @@
-import { auth } from '@/lib/auth/auth';
+import { auth, isAdmin } from '@/lib/auth/auth';
 import { redirect } from 'next/navigation';
 import connectDB from '@/lib/db/mongodb';
 import ResultModel from '@/models/Result';
-import UserModel from '@/models/User';
+import { IUser } from '@/models/User';
 import GlassCard from '@/components/ui/GlassCard';
-import PrimaryButton from '@/components/ui/PrimaryButton';
-import { Search, Filter, Download, Eye, Award } from 'lucide-react';
+import { Award } from 'lucide-react';
 
 export default async function ResultsPage() {
   const session = await auth();
   
-  if (!session || session.user.role !== 'admin') {
-    redirect('/login');
+  if (!session || !isAdmin(session.user.role)) {
+    redirect('/sign-in');
   }
 
   await connectDB();
 
   const results = await ResultModel.find()
-    .populate('student')
+    .populate<{ student: Pick<IUser, 'fullName' | 'playerId'> }>('student', 'fullName playerId')
     .sort({ completedAt: -1 })
     .limit(50);
 
@@ -27,43 +26,9 @@ export default async function ResultsPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Results</h1>
-          <p className="text-gray-600">View all test and competition results</p>
+          <p className="text-gray-600">Latest recorded practice and competition results.</p>
         </div>
-        <PrimaryButton variant="secondary">
-          <Download className="w-4 h-4 mr-2" />
-          Export Results
-        </PrimaryButton>
       </div>
-
-      {/* Search and Filters */}
-      <GlassCard className="p-6">
-        <div className="flex gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search results..."
-              className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none"
-            />
-          </div>
-          <select className="px-4 py-3 rounded-xl border border-gray-200 focus:border-brand-primary outline-none">
-            <option value="">All Types</option>
-            <option value="practice">Practice</option>
-            <option value="test">Test</option>
-            <option value="competition">Competition</option>
-          </select>
-          <select className="px-4 py-3 rounded-xl border border-gray-200 focus:border-brand-primary outline-none">
-            <option value="">Date Range</option>
-            <option value="today">Today</option>
-            <option value="week">This Week</option>
-            <option value="month">This Month</option>
-          </select>
-          <PrimaryButton variant="secondary">
-            <Filter className="w-4 h-4 mr-2" />
-            Filter
-          </PrimaryButton>
-        </div>
-      </GlassCard>
 
       {/* Results Table */}
       <GlassCard className="p-6">
@@ -77,11 +42,10 @@ export default async function ResultsPage() {
                 <th className="text-left py-4 px-4 font-semibold text-gray-700">Accuracy</th>
                 <th className="text-left py-4 px-4 font-semibold text-gray-700">Time</th>
                 <th className="text-left py-4 px-4 font-semibold text-gray-700">Date</th>
-                <th className="text-left py-4 px-4 font-semibold text-gray-700">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {results.map((result: any) => (
+              {results.map((result) => (
                 <tr key={result._id.toString()} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-4 px-4">
                     <div className="flex items-center gap-3">
@@ -121,11 +85,6 @@ export default async function ResultsPage() {
                   <td className="py-4 px-4 text-gray-600">{result.timeTaken || 'N/A'}</td>
                   <td className="py-4 px-4 text-gray-600">
                     {new Date(result.completedAt).toLocaleDateString()}
-                  </td>
-                  <td className="py-4 px-4">
-                    <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                      <Eye className="w-4 h-4 text-gray-600" />
-                    </button>
                   </td>
                 </tr>
               ))}

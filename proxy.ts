@@ -1,33 +1,57 @@
-import { NextResponse, type NextRequest } from 'next/server';
-import { getToken } from 'next-auth/jwt';
+import { clerkMiddleware } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
+import { takeRateLimit } from '@/lib/security/rate-limit';
 
-const adminRoles = new Set(['admin', 'super_admin']);
+const mutatingMethods = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
-export async function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  const token = await getToken({
-    req: request,
-    secret: process.env.NEXTAUTH_SECRET || 'mathlers-secret-key-change-in-production',
-  });
-
-  if (!token) {
-    const login = new URL('/login', request.url);
-    login.searchParams.set('callbackUrl', request.nextUrl.href);
-    return NextResponse.redirect(login);
-  }
-
-  const role = token.role as string | undefined;
-  if (pathname.startsWith('/admin') && !adminRoles.has(role || '')) {
-    return NextResponse.redirect(new URL('/student/dashboard', request.url));
-  }
-
-  if (pathname.startsWith('/student') && role !== 'student') {
-    return NextResponse.redirect(new URL('/admin/dashboard', request.url));
-  }
-
-  return NextResponse.next();
+function sensitiveApiLimit(pathname: string) {
+  if (pathname === '/api/admin/provision-users' || pathname === '/api/admin/schools') return { key: 'admin-provisioning', limit: 10 };
+  if (/^\/api\/competitions\/[^/]+\/(enroll|start|submit)$/.test(pathname)) return { key: 'competition-attempt', limit: 30 };
+  if (pathname === '/api/competitions/join-code') return { key: 'competition-code', limit: 30 };
+  return undefined;
 }
 
+function clientAddress(request: Request) {
+  return request.headers.get('cf-connecting-ip')
+    || request.headers.get('x-real-ip')
+    || request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    || 'unknown';
+}
+
+/** Reject cross-site browser writes before they reach an authenticated API route. */
+export default clerkMiddleware((_auth, request) => {
+  if (!request.nextUrl.pathname.startsWith('/api/') || !mutatingMethods.has(request.method)) return;
+
+  const origin = request.headers.get('origin');
+  if (origin && origin !== request.nextUrl.origin) {
+    return NextResponse.json({ error: 'Cross-site requests are not allowed.' }, { status: 403 });
+  }
+
+  const rule = sensitiveApiLimit(request.nextUrl.pathname);
+  if (rule) {
+    const rateLimit = takeRateLimit(`${rule.key}:${clientAddress(request)}`, rule.limit, 60_000);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again shortly.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSeconds) } },
+      );
+    }
+  }
+}, {
+  contentSecurityPolicy: {
+    strict: true,
+    directives: {
+      'base-uri': ["'self'"],
+      'object-src': ["'none'"],
+      'frame-ancestors': ["'none'"],
+    },
+  },
+});
+
 export const config = {
-  matcher: ['/admin/:path*', '/student/:path*'],
+  matcher: [
+    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    '/(api|trpc)(.*)',
+    '/__clerk/:path*',
+  ],
 };

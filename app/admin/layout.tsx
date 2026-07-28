@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth/auth';
+import { auth, isSuperAdmin } from '@/lib/auth/auth';
 import { redirect } from 'next/navigation';
 import AdminSidebar from '@/components/layout/AdminSidebar';
 
@@ -9,13 +9,14 @@ export default async function AdminLayout({
 }) {
   const session = await auth();
   
-  if (!session || !['admin', 'super_admin'].includes(session.user.role)) {
-    redirect('/login');
+  if (!session) {
+    redirect('/sign-in');
   }
+  if (!isSuperAdmin(session.user.role)) redirect('/school');
 
   return (
     <div data-portal="admin" className="min-h-screen">
-      <AdminSidebar />
+      <AdminSidebar isSuperAdmin />
       <main className="ml-64 p-8">
         {children}
       </main>

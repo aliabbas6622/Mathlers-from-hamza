@@ -1,25 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth/auth';
+import { auth, isSuperAdmin } from '@/lib/auth/auth';
 import connectDB from '@/lib/db/mongodb';
 import SubjectModel from '@/models/Subject';
 import TopicModel from '@/models/Topic';
 import ChapterModel from '@/models/Chapter';
 import QuestionModel from '@/models/Question';
 import GradeModel from '@/models/Grade';
+import mongoose from 'mongoose';
 
-const isAdmin = async () => {
+const requireSuperAdmin = async () => {
   const session = await auth();
-  return session && ['admin', 'super_admin'].includes(session.user.role);
+  return session && isSuperAdmin(session.user.role);
 };
 
+const validIds = (value: unknown): value is string[] => Array.isArray(value)
+  && value.every((id) => typeof id === 'string' && mongoose.isValidObjectId(id));
+
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!await isAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!await requireSuperAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
     await connectDB();
     const { id } = await params;
-    const body = await request.json() as { name?: string; code?: string; grades?: string[]; description?: string; color?: string; order?: number; isActive?: boolean };
-    const grades = body.grades === undefined ? undefined : [...new Set(body.grades.filter(Boolean))];
+    if (!mongoose.isValidObjectId(id)) return NextResponse.json({ error: 'Invalid subject' }, { status: 400 });
+    const body = await request.json() as { name?: string; code?: string; grades?: unknown; description?: string; color?: string; order?: number; isActive?: boolean };
+    if (body.grades !== undefined && !validIds(body.grades)) return NextResponse.json({ error: 'Grades must be valid identifiers' }, { status: 400 });
+    const grades = body.grades === undefined ? undefined : [...new Set(body.grades)];
     if (grades && grades.length && await GradeModel.countDocuments({ _id: { $in: grades } }) !== grades.length) {
       return NextResponse.json({ error: 'One or more grades are invalid' }, { status: 400 });
     }
@@ -44,10 +50,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!await isAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!await requireSuperAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   await connectDB();
   const { id } = await params;
+  if (!mongoose.isValidObjectId(id)) return NextResponse.json({ error: 'Invalid subject' }, { status: 400 });
   const [questions, chapters, topics] = await Promise.all([
     QuestionModel.countDocuments({ subject: id }),
     ChapterModel.countDocuments({ subject: id }),

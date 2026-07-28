@@ -1,126 +1,40 @@
-import NextAuth from 'next-auth';
-import type { Session, User } from 'next-auth';
-import type { JWT } from '@auth/core/jwt';
-import Credentials from 'next-auth/providers/credentials';
-import UserModel, { UserRole } from '@/models/User';
+import { auth as clerkAuth, currentUser } from '@clerk/nextjs/server';
 import connectDB from '@/lib/db/mongodb';
-import bcrypt from 'bcryptjs';
+import UserModel, { UserRole } from '@/models/User';
 
-async function getBypassUser(bypassRole: 'student' | 'admin') {
+export type MathlersSession = {
+  user: { id: string; email: string; name: string; role: UserRole; playerId: string };
+};
+
+/** Resolves Clerk identities to the Mongo ObjectIds used by Mathlers records. */
+export async function auth(): Promise<MathlersSession | null> {
+  const { userId } = await clerkAuth();
+  if (!userId) return null;
+
   await connectDB();
-  const role = bypassRole === 'admin' ? UserRole.ADMIN : UserRole.STUDENT;
-  const email = `${bypassRole}@mathlers.local`;
-  const playerId = bypassRole === 'admin' ? 'ADM-BYPASS' : 'MTH-BYPASS';
+  let user = await UserModel.findOne({ clerkId: userId });
 
-  return UserModel.findOneAndUpdate(
-    { email },
-    {
-      $setOnInsert: {
-        fullName: bypassRole === 'admin' ? 'Bypass Admin' : 'Bypass Student',
-        fatherName: 'Development Bypass',
-        dateOfBirth: new Date('2010-01-01'),
-        gender: 'other',
-        email,
-        phone: '0000000000',
-        password: 'development-bypass',
-        city: 'Development',
-        grade: '12',
-        role,
-        playerId,
-        isEmailVerified: true,
-      },
-    },
-    { returnDocument: 'after', upsert: true }
-  );
+  if (!user) {
+    const clerkUser = await currentUser();
+    const email = clerkUser?.primaryEmailAddress?.emailAddress?.toLowerCase();
+    if (!clerkUser || !email || clerkUser.primaryEmailAddress?.verification?.status !== 'verified') return null;
+
+    const existing = await UserModel.findOne({ email });
+    if (existing) {
+      if (existing.clerkId && existing.clerkId !== userId) return null;
+      existing.clerkId = userId;
+      existing.isEmailVerified = true;
+      await existing.save();
+      user = existing;
+    } else return null;
+  }
+
+  if (!user.isActive || user.isSuspended) return null;
+  return { user: { id: user._id.toString(), email: user.email, name: user.fullName, role: user.role, playerId: user.playerId } };
 }
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  pages: {
-    signIn: '/login',
-    error: '/login',
-  },
-  session: {
-    strategy: 'jwt',
-  },
-  secret: process.env.NEXTAUTH_SECRET || 'mathlers-secret-key-change-in-production',
-  providers: [
-    Credentials({
-      async authorize(credentials) {
-        const bypassRole = credentials?.bypassRole as string | undefined;
-
-        if (process.env.NODE_ENV !== 'production' && (bypassRole === 'student' || bypassRole === 'admin')) {
-          const user = await getBypassUser(bypassRole);
-
-          return {
-            id: user._id.toString(),
-            email: user.email,
-            name: user.fullName,
-            role: user.role,
-            playerId: user.playerId,
-          };
-        }
-
-        if (!credentials?.email || !credentials?.password) {
-          return null;
-        }
-
-        try {
-          await connectDB();
-          const user = await UserModel.findOne({ email: credentials.email as string });
-
-          if (!user || !user.isActive || user.isSuspended) {
-            return null;
-          }
-
-          const isPasswordValid = await bcrypt.compare(
-            credentials.password as string,
-            user.password
-          );
-
-          if (!isPasswordValid) {
-            return null;
-          }
-
-          return {
-            id: user._id.toString(),
-            email: user.email,
-            name: user.fullName,
-            role: user.role,
-            playerId: user.playerId,
-          };
-        } catch {
-          return null;
-        }
-      },
-    }),
-  ],
-  callbacks: {
-    async jwt({ token, user }: { token: JWT; user?: User }) {
-      if (user) {
-        token.id = user.id;
-        token.role = user.role;
-        token.playerId = user.playerId;
-      }
-      return token;
-    },
-    async session({ session, token }: { session: Session; token: JWT }) {
-      if (token && session.user) {
-        if (
-          process.env.NODE_ENV !== 'production' &&
-          (token.id === 'bypass-student' || token.id === 'bypass-admin')
-        ) {
-          const bypassRole = token.id === 'bypass-admin' ? 'admin' : 'student';
-          const user = await getBypassUser(bypassRole);
-          token.id = user._id.toString();
-          token.role = user.role;
-          token.playerId = user.playerId;
-        }
-
-        session.user.id = token.id;
-        session.user.role = token.role;
-        session.user.playerId = token.playerId;
-      }
-      return session;
-    },
-  },
-});
+export const isAdmin = (role?: string) => role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN;
+export const isSuperAdmin = (role?: string) => role === UserRole.SUPER_ADMIN;
+export const isTeacher = (role?: string) => role === UserRole.TEACHER;
+export const canManageContent = (role?: string) => isTeacher(role) || isAdmin(role);
+export const canManageSchoolOperations = (role?: string) => isAdmin(role);

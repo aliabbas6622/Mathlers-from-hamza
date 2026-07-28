@@ -45,7 +45,7 @@ export default function ContentPage() {
   const [section, setSection] = useState<'subjects' | 'grades' | 'topics'>('subjects');
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [grades, setGrades] = useState<Grade[]>([]);
-  const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [, setChapters] = useState<Chapter[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
 
   const [subjectForm, setSubjectForm] = useState(emptySubject);

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth/auth';
+import { auth, isSuperAdmin } from '@/lib/auth/auth';
 import connectDB from '@/lib/db/mongodb';
 import QuestionModel from '@/models/Question';
 import {
@@ -20,7 +20,7 @@ type PendingQuestion = { row: number; data: QuestionPayload };
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
-    if (!session || !['admin', 'super_admin'].includes(session.user.role)) {
+    if (!session || !isSuperAdmin(session.user.role)) {
       return NextResponse.json(questionError('Unauthorized', 'UNAUTHORIZED'), { status: 401 });
     }
 

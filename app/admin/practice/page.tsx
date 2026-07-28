@@ -7,7 +7,8 @@ import Modal from '@/components/ui/Modal';
 import PrimaryButton from '@/components/ui/PrimaryButton';
 
 type Lookup = { _id: string; name: string };
-type Question = { _id: string; question: string; subject?: Lookup; grade?: Lookup; topic?: { _id: string; name: string; subtopics?: { _id: string; name: string }[] }; subtopic?: string; difficulty: string; marks: number };
+type Topic = { _id: string; name: string; subtopics?: { _id: string; name: string }[] };
+type Question = { _id: string; question: string; subject?: Lookup; grade?: Lookup; topic?: Topic; subtopic?: string; difficulty: string; marks: number };
 type Section = { name: string; instructions: string; questions: string[] };
 type SectionFilter = { subject: string; grade: string; topic: string; subtopic: string };
 type PracticeBook = { _id: string; name: string; description?: string; type: string; difficulty: string; sections: { name: string; questions: string[] }[]; questions: string[]; timeLimit: number; attemptsAllowed: number; isPublished: boolean };
@@ -26,7 +27,7 @@ export default function AdminPracticePage() {
   const [notice, setNotice] = useState('');
   const [form, setForm] = useState({ name: '', description: '', type: 'mixed_practice', difficulty: 'mixed', timeLimit: 1800, attemptsAllowed: 3, startDate: '', endDate: '', isPublished: false, sections: [blankSection()] });
   const [filters, setFilters] = useState<Record<number, SectionFilter>>({ 0: blankFilter() });
-  const [topicsMap, setTopicsMap] = useState<Record<number, any[]>>({});
+  const [topicsMap, setTopicsMap] = useState<Record<number, Topic[]>>({});
 
   const load = useCallback(async () => {
     const [bookRes, subjectRes, gradeRes, questionRes] = await Promise.all([
@@ -42,7 +43,10 @@ export default function AdminPracticePage() {
     if (qd.success) setAllQuestions(qd.data);
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [load]);
 
   const fetchTopics = useCallback(async (index: number, subjectId: string) => {
     if (!subjectId) { setTopicsMap(p => ({ ...p, [index]: [] })); return; }
@@ -181,14 +185,14 @@ export default function AdminPracticePage() {
         {/* Sections */}
         <section className="space-y-4 border-t border-gray-200 pt-5">
           <div className="flex items-center justify-between">
-            <div><h3 className="font-bold text-gray-950">Book sections</h3><p className="text-sm text-gray-600">Each section groups questions. Use filters to browse — they won't be saved.</p></div>
+            <div><h3 className="font-bold text-gray-950">Book sections</h3><p className="text-sm text-gray-600">Each section groups questions. Use filters to browse &mdash; they won&apos;t be saved.</p></div>
             <button type="button" onClick={addSection} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"><Plus className="h-4 w-4" />Section</button>
           </div>
 
           {form.sections.map((section, index) => {
             const f = filters[index] || blankFilter();
             const topics = topicsMap[index] || [];
-            const activeTopic = topics.find((t: any) => t._id === f.topic);
+            const activeTopic = topics.find((t: Topic) => t._id === f.topic);
             const visible = visibleQuestions(index);
             return (
               <div key={index} className="space-y-4 rounded-xl border border-gray-200 bg-gray-50/60 p-4">
@@ -220,12 +224,12 @@ export default function AdminPracticePage() {
                     </label>
                     {topics.length > 0 && <label className="text-xs font-semibold text-gray-600">Topic
                       <select value={f.topic} onChange={e => updateFilter(index, { topic: e.target.value, subtopic: '' })} className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-2 py-2 text-sm">
-                        <option value="">All topics</option>{topics.map((t: any) => <option key={t._id} value={t._id}>{t.name}</option>)}
+                        <option value="">All topics</option>{topics.map((t: Topic) => <option key={t._id} value={t._id}>{t.name}</option>)}
                       </select>
                     </label>}
-                    {activeTopic?.subtopics?.length > 0 && <label className="text-xs font-semibold text-gray-600">Subtopic
+                    {(activeTopic?.subtopics?.length ?? 0) > 0 && <label className="text-xs font-semibold text-gray-600">Subtopic
                       <select value={f.subtopic} onChange={e => updateFilter(index, { subtopic: e.target.value })} className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-2 py-2 text-sm">
-                        <option value="">All subtopics</option>{activeTopic.subtopics.map((s: any) => <option key={s._id} value={s._id}>{s.name}</option>)}
+                        <option value="">All subtopics</option>{activeTopic?.subtopics?.map((s: { _id: string; name: string }) => <option key={s._id} value={s._id}>{s.name}</option>)}
                       </select>
                     </label>}
                   </div>

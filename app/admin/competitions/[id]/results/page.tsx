@@ -1,19 +1,21 @@
 import React from 'react';
-import { auth } from '@/lib/auth/auth';
+import { auth, isAdmin } from '@/lib/auth/auth';
 import { redirect } from 'next/navigation';
 import connectDB from '@/lib/db/mongodb';
 import CompetitionModel from '@/models/Competition';
 import EnrollmentModel from '@/models/Enrollment';
+import { IUser } from '@/models/User';
 import Link from 'next/link';
-import { ChevronRight, Trophy, Users, Award, Download } from 'lucide-react';
+import { ChevronRight, Trophy, Users, Award } from 'lucide-react';
 import GlassCard from '@/components/ui/GlassCard';
 import StatCard from '@/components/ui/StatCard';
+import EnrollmentReviewActions from '../../EnrollmentReviewActions';
 
 export default async function AdminCompetitionResultsPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
 
-  if (!session || session.user.role !== 'admin') {
-    redirect('/login');
+  if (!session || !isAdmin(session.user.role)) {
+    redirect('/sign-in');
   }
 
   await connectDB();
@@ -25,7 +27,7 @@ export default async function AdminCompetitionResultsPage({ params }: { params: 
   }
 
   const enrollments = await EnrollmentModel.find({ competition: id })
-    .populate('student', 'name email grade school')
+    .populate<{ student: Pick<IUser, 'fullName' | 'email'> }>('student', 'fullName email')
     .sort({ score: -1, percentage: -1 });
 
   const totalParticipants = enrollments.length;
@@ -73,11 +75,12 @@ export default async function AdminCompetitionResultsPage({ params }: { params: 
                 <th className="text-left py-4 px-4 font-semibold text-gray-700">Status</th>
                 <th className="text-left py-4 px-4 font-semibold text-gray-700">Score</th>
                 <th className="text-left py-4 px-4 font-semibold text-gray-700">Percentage</th>
+                <th className="text-left py-4 px-4 font-semibold text-gray-700">Review</th>
               </tr>
             </thead>
             <tbody>
-              {enrollments.map((enr: any, idx: number) => {
-                const studentName = enr.student?.name || 'Student';
+              {enrollments.map((enr, idx: number) => {
+                const studentName = enr.student?.fullName || 'Student';
                 const studentEmail = enr.student?.email || '';
 
                 return (
@@ -99,6 +102,7 @@ export default async function AdminCompetitionResultsPage({ params }: { params: 
                     </td>
                     <td className="py-4 px-4 font-bold text-gray-900">{enr.score ?? '-'}</td>
                     <td className="py-4 px-4 font-bold text-gray-900">{enr.percentage !== undefined ? `${enr.percentage}%` : '-'}</td>
+                    <td className="py-4 px-4"><EnrollmentReviewActions competitionId={id} enrollmentId={enr._id.toString()} status={enr.status} /></td>
                   </tr>
                 );
               })}
